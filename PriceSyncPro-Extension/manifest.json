@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "PriceSyncPro - New API 定价同步助手",
+  "version": "1.0.0",
+  "description": "在 New API 管理后台中一键同步上游模型定价，自动更新 ModelPrice、ModelRatio 和 CompletionRatio 配置",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "cookies"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PriceSyncPro - 定价同步"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["pricing-engine.js", "official_prices.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

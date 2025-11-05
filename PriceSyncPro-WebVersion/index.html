@@ -1,0 +1,1203 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PriceSyncPro - New API 定价同步工具</title>
+  <style>
+    /* ========================================
+       iOS-Style Variables & Reset
+       ======================================== */
+    :root {
+      --color-primary: #007AFF;
+      --color-secondary: #5856D6;
+      --color-success: #34C759;
+      --color-warning: #FF9500;
+      --color-danger: #FF3B30;
+      --color-bg: #F2F2F7;
+      --color-card: #FFFFFF;
+      --color-text-primary: #000000;
+      --color-text-secondary: #8E8E93;
+      --color-separator: rgba(60, 60, 67, 0.12);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ========================================
+       Header
+       ======================================== */
+    .header-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .app-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+      flex-shrink: 0;
+    }
+
+    .header-text h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .header-text p {
+      font-size: 16px;
+      color: var(--color-text-secondary);
+      font-weight: 400;
+    }
+
+    /* ========================================
+       Tabs
+       ======================================== */
+    .tabs-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 8px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .tab.active {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .tab:not(.active):active {
+      background: var(--color-bg);
+    }
+
+    /* ========================================
+       Tab Content
+       ======================================== */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========================================
+       Info Banner
+       ======================================== */
+    .info-banner {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .info-banner-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .info-banner-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ========================================
+       Input Card
+       ======================================== */
+    .input-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .input-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--color-separator);
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      background: var(--color-card);
+      color: var(--color-text-primary);
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+    }
+
+    .input-field::placeholder {
+      color: var(--color-text-secondary);
+      opacity: 0.6;
+    }
+
+    select.input-field {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='7' viewBox='0 0 12 7' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238E8E93' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 40px;
+    }
+
+    .input-hint {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.4;
+    }
+
+    /* ========================================
+       Buttons
+       ======================================== */
+    .btn-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .btn {
+      height: 50px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      letter-spacing: -0.2px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .btn-primary:active:not(:disabled) {
+      background: #0051D5;
+    }
+
+    .btn-secondary {
+      background: var(--color-card);
+      color: var(--color-primary);
+      border: 1px solid var(--color-separator);
+    }
+
+    .btn-secondary:active:not(:disabled) {
+      background: var(--color-bg);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ========================================
+       Loading Spinner
+       ======================================== */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========================================
+       Message Card
+       ======================================== */
+    .message-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .message-card.show {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message-info {
+      background: rgba(0, 122, 255, 0.08);
+      color: var(--color-primary);
+    }
+
+    .message-success {
+      background: rgba(52, 199, 89, 0.08);
+      color: var(--color-success);
+    }
+
+    .message-error {
+      background: rgba(255, 59, 48, 0.08);
+      color: var(--color-danger);
+    }
+
+    .message-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    /* ========================================
+       Stats Grid
+       ======================================== */
+    .stats-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      display: none;
+    }
+
+    .stats-card.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-item {
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    /* ========================================
+       Results Table
+       ======================================== */
+    .results-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      display: none;
+    }
+
+    .results-card.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .results-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .table-wrapper {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--color-separator);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .table-wrapper::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--color-bg);
+      z-index: 10;
+    }
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-separator);
+      background: white;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .model-name {
+      font-weight: 500;
+      color: var(--color-text-primary);
+    }
+
+    .price-cell {
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-weight: 600;
+      color: var(--color-success);
+    }
+
+    .mode-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .mode-peruse {
+      background: rgba(255, 149, 0, 0.12);
+      color: var(--color-warning);
+    }
+
+    .mode-usage {
+      background: rgba(0, 122, 255, 0.12);
+      color: var(--color-primary);
+    }
+
+    /* ========================================
+       SQL Output
+       ======================================== */
+    .sql-output {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: var(--radius-md);
+      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 500px;
+      overflow: auto;
+      margin: 16px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+
+    .sql-output.show {
+      display: block;
+    }
+
+    /* ========================================
+       Footer
+       ======================================== */
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      padding: 32px 0;
+    }
+
+    .footer-badge {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    /* ========================================
+       Utility Classes
+       ======================================== */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header-card">
+      <div class="header-content">
+        <div class="app-icon">🚀</div>
+        <div class="header-text">
+          <h1>PriceSyncPro</h1>
+          <p>智能分析上游价格 + 自动生成数据库更新 SQL</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-card">
+      <button class="tab active" onclick="switchTab('analyze')">📊 价格分析</button>
+      <button class="tab" onclick="switchTab('sql')">🗄️ SQL 生成器</button>
+      <button class="tab" onclick="switchTab('guide')">📖 使用指南</button>
+      <button class="tab" onclick="switchTab('about')">ℹ️ 关于</button>
+    </div>
+
+    <!-- Price Analysis Tab -->
+    <div class="tab-content active" id="analyze-tab">
+      <div class="info-banner">
+        <span class="info-banner-icon">💡</span>
+        <span class="info-banner-text">此工具通过"众数投票"算法智能推断上游系统的隐藏基础价，然后精确计算每个模型的真实价格</span>
+      </div>
+
+      <div class="input-card">
+        <div class="input-group">
+          <label class="input-label">上游定价 URL</label>
+          <input
+            type="text"
+            id="upstreamUrl"
+            class="input-field"
+            placeholder="https://api.example.com/api/pricing"
+          >
+          <div class="input-hint">页面 URL 或直接 API 端点</div>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="btn-group">
+          <button class="btn btn-primary" id="analyzeBtn">
+            <span>🔍</span>
+            <span>开始智能分析</span>
+          </button>
+          <button class="btn btn-secondary" id="sampleBtn">
+            <span>🧪</span>
+            <span>加载示例数据</span>
+          </button>
+          <button class="btn btn-secondary" id="exportBtn" disabled>
+            <span>📊</span>
+            <span>导出 CSV</span>
+          </button>
+          <button class="btn btn-secondary" id="copyBtn" disabled>
+            <span>📋</span>
+            <span>复制数据</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="messageArea"></div>
+
+      <div id="statsCard" class="stats-card">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">🎯 推断基础价</div>
+            <div class="stat-value" id="basePriceStat">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">🎲 推断置信度</div>
+            <div class="stat-value" id="confidenceStat">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">📦 匹配模型数</div>
+            <div class="stat-value" id="matchedStat">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">📚 总模型数</div>
+            <div class="stat-value" id="totalStat">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="resultsCard" class="results-card">
+        <div class="results-header">
+          <h3 class="results-title">计算结果</h3>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>模型名称</th>
+                <th>原始名称</th>
+                <th>计费模式</th>
+                <th>输入价格 ($/1M)</th>
+                <th>输出价格 ($/1M)</th>
+                <th>Model Ratio</th>
+                <th>Completion Ratio</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SQL Generator Tab -->
+    <div class="tab-content" id="sql-tab">
+      <div class="info-banner">
+        <span class="info-banner-icon">ℹ️</span>
+        <span class="info-banner-text">请先在"价格分析"标签完成分析，然后选择 SQL 模式生成更新脚本</span>
+      </div>
+
+      <div class="input-card">
+        <div class="input-group">
+          <label class="input-label">模型名称前缀（可选）</label>
+          <input
+            type="text"
+            id="modelPrefix"
+            class="input-field"
+            placeholder="例如：KYX/"
+          >
+          <div class="input-hint">为上游模型添加自定义前缀，留空则不添加前缀</div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">SQL 模式</label>
+          <select id="sqlMode" class="input-field">
+            <option value="merge">合并模式（智能合并，保留其他配置）</option>
+            <option value="backup">带备份模式（先备份再合并）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="btn-group">
+          <button class="btn btn-primary" id="generateSqlBtn" disabled>
+            <span>🔧</span>
+            <span>生成 SQL</span>
+          </button>
+          <button class="btn btn-secondary" id="copySqlBtn" disabled>
+            <span>📋</span>
+            <span>复制 SQL</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="sqlMessageArea"></div>
+
+      <div id="sqlOutput" class="sql-output"></div>
+    </div>
+
+    <!-- Guide Tab -->
+    <div class="tab-content" id="guide-tab">
+      <div class="input-card">
+        <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 20px; color: var(--color-text-primary);">📖 使用指南</h2>
+        
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">🚀 快速开始</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;"><strong>第一步：</strong>在"📊 价格分析"标签页输入上游定价 URL</p>
+            <p style="margin-bottom: 12px;"><strong>第二步：</strong>点击"🔍 开始智能分析"，等待分析完成</p>
+            <p style="margin-bottom: 12px;"><strong>第三步：</strong>切换到"🗄️ SQL 生成器"标签页</p>
+            <p style="margin-bottom: 12px;"><strong>第四步：</strong>输入模型前缀（可选），选择 SQL 模式</p>
+            <p style="margin-bottom: 0;"><strong>第五步：</strong>生成 SQL 并复制到数据库执行</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">💡 核心功能</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;"><strong>🧠 智能价格推断：</strong>使用"众数投票"算法自动推断上游系统的隐藏基础价</p>
+            <p style="margin-bottom: 12px;"><strong>🎯 精确计算：</strong>支持按次计费和按量计费两种模式，精确计算每个模型价格</p>
+            <p style="margin-bottom: 12px;"><strong>🔧 智能合并：</strong>只更新当前前缀的模型，完全保留其他渠道配置</p>
+            <p style="margin-bottom: 0;"><strong>📊 数据导出：</strong>支持导出 CSV 格式，方便数据分析和备份</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">⚙️ SQL 模式说明</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;"><strong>合并模式（推荐）：</strong>智能合并配置，只更新当前前缀的模型，保留其他渠道配置</p>
+            <p style="margin-bottom: 0;"><strong>带备份模式：</strong>在合并前先创建备份表，适合重要更新或首次使用</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-warning);">⚠️ 注意事项</h3>
+          <div style="background: rgba(255, 149, 0, 0.08); padding: 16px; border-radius: var(--radius-md); line-height: 1.8; color: var(--color-warning);">
+            <p style="margin-bottom: 12px;">• 执行 SQL 前请确保已备份数据库</p>
+            <p style="margin-bottom: 12px;">• 建议先在测试环境验证 SQL 的正确性</p>
+            <p style="margin-bottom: 12px;">• 置信度低于 80% 时，建议手动检查基础价是否正确</p>
+            <p style="margin-bottom: 0;">• 如遇到问题，请查看浏览器控制台的详细日志</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">🔌 浏览器插件版本</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;">如果你只有 New API 后台登录权限（无数据库访问权限），推荐使用浏览器插件版本：</p>
+            <p style="margin-bottom: 12px;"><strong>✨ 一键自动同步：</strong>无需手动执行 SQL，点击按钮即可完成</p>
+            <p style="margin-bottom: 12px;"><strong>🔒 更安全：</strong>使用浏览器 Cookie 认证，无需 API Token</p>
+            <p style="margin-bottom: 0;"><strong>📦 安装方式：</strong>查看项目中的 <code>PriceSyncPro-Extension</code> 文件夹</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Tab -->
+    <div class="tab-content" id="about-tab">
+      <div class="input-card">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 40px; box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3); margin-bottom: 16px;">🚀</div>
+          <h1 style="font-size: 32px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.5px;">PriceSyncPro</h1>
+          <p style="font-size: 16px; color: var(--color-text-secondary); margin-bottom: 8px;">New API 智能价格同步工具</p>
+          <p style="font-size: 14px; color: var(--color-text-secondary);">版本 1.0.0</p>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">📝 项目简介</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;">PriceSyncPro 是一个专为 New API 设计的智能价格同步工具，解决自定义模型前缀导致的价格同步失效问题。</p>
+            <p style="margin-bottom: 0;">通过"众数投票"算法智能推断上游系统的隐藏基础价，精确计算每个模型的真实价格，支持一键生成数据库更新 SQL。</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">✨ 核心特性</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;">🧠 <strong>智能价格推断：</strong>自动推断上游系统的隐藏基础价</p>
+            <p style="margin-bottom: 12px;">🎯 <strong>精确计算：</strong>支持按次计费和按量计费两种模式</p>
+            <p style="margin-bottom: 12px;">🔧 <strong>智能合并：</strong>只更新当前前缀，保留其他配置</p>
+            <p style="margin-bottom: 12px;">📊 <strong>数据导出：</strong>支持 CSV 格式导出</p>
+            <p style="margin-bottom: 12px;">🔌 <strong>浏览器插件：</strong>一键自动同步，无需手动执行 SQL</p>
+            <p style="margin-bottom: 0;">📚 <strong>官方价格库：</strong>内置 120+ 主流模型官方价格</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">🔗 相关链接</h3>
+          <div style="display: grid; gap: 12px;">
+            <a href="https://github.com/sycg767/PriceSyncPro" target="_blank" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--color-bg); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all 0.2s ease;">
+              <svg style="width: 24px; height: 24px; flex-shrink: 0;" viewBox="0 0 16 16" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">GitHub 仓库</div>
+                <div style="font-size: 13px; color: var(--color-text-secondary);">查看源代码、提交问题、参与贡献</div>
+              </div>
+              <span style="color: var(--color-primary);">→</span>
+            </a>
+            
+            <a href="https://github.com/sycg767/PriceSyncPro/issues" target="_blank" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--color-bg); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all 0.2s ease;">
+              <span style="font-size: 24px; flex-shrink: 0;">🐛</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">问题反馈</div>
+                <div style="font-size: 13px; color: var(--color-text-secondary);">报告 Bug、提出功能建议</div>
+              </div>
+              <span style="color: var(--color-primary);">→</span>
+            </a>
+            
+            <a href="https://github.com/sycg767/PriceSyncPro/blob/main/README.md" target="_blank" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--color-bg); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all 0.2s ease;">
+              <span style="font-size: 24px; flex-shrink: 0;">📖</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">完整文档</div>
+                <div style="font-size: 13px; color: var(--color-text-secondary);">详细的使用教程和 API 文档</div>
+              </div>
+              <span style="color: var(--color-primary);">→</span>
+            </a>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">👨‍💻 作者信息</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;"><strong>开发者：</strong>sycg767</p>
+            <p style="margin-bottom: 12px;"><strong>GitHub：</strong><a href="https://github.com/sycg767" target="_blank" style="color: var(--color-primary); text-decoration: none;">@sycg767</a></p>
+            <p style="margin-bottom: 0;"><strong>开源协议：</strong>MIT License</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--color-primary);">🙏 致谢</h3>
+          <div style="background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); line-height: 1.8;">
+            <p style="margin-bottom: 12px;">感谢所有使用和反馈的用户！</p>
+            <p style="margin-bottom: 0;">如果这个工具对你有帮助，欢迎在 GitHub 上给个 ⭐ Star！</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="footer-badge">PriceSyncPro v1.0.0</span> | 智能价格同步工具 |
+      <a href="https://github.com/sycg767/PriceSyncPro" target="_blank" style="color: var(--color-primary); text-decoration: none; font-weight: 600;">GitHub</a>
+    </div>
+  </div>
+
+  <script src="pricing-engine.js"></script>
+  <script>
+    const engine = new PricingEngine();
+    let currentResults = null;
+    let generatedSQL = '';
+
+    // DOM 元素
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const generateSqlBtn = document.getElementById('generateSqlBtn');
+    const copySqlBtn = document.getElementById('copySqlBtn');
+    const upstreamUrlInput = document.getElementById('upstreamUrl');
+    const messageArea = document.getElementById('messageArea');
+    const sqlMessageArea = document.getElementById('sqlMessageArea');
+    const statsCard = document.getElementById('statsCard');
+    const resultsCard = document.getElementById('resultsCard');
+    const sqlOutput = document.getElementById('sqlOutput');
+
+    // 初始化
+    (async function init() {
+      try {
+        await engine.loadOfficialPrices();
+        showMessage('success', '官方价格数据库加载成功');
+        // 3秒后自动隐藏成功消息
+        setTimeout(() => {
+          messageArea.innerHTML = '';
+        }, 3000);
+      } catch (error) {
+        showMessage('error', `初始化失败: ${error.message}`);
+        analyzeBtn.disabled = true;
+      }
+    })();
+
+    // 切换标签页
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabName + '-tab').classList.add('active');
+    }
+
+    // 主分析流程
+    analyzeBtn.addEventListener('click', async () => {
+      const url = upstreamUrlInput.value.trim();
+      
+      if (!url) {
+        showMessage('error', '⚠️ 请输入上游定价接口地址');
+        return;
+      }
+
+      setLoading(true);
+      hideResults();
+
+      try {
+        showMessage('info', '📡 正在获取上游定价数据...');
+        await engine.fetchUpstreamData(url);
+        
+        showMessage('info', '🧠 正在智能推断隐藏基础价...');
+        const inference = engine.inferBasePrice();
+        
+        showMessage('info', '💰 正在计算所有模型价格...');
+        currentResults = engine.calculatePricing();
+        
+        displayStats(inference);
+        displayResults(currentResults);
+        
+        showMessage('success', `✅ 分析完成！共计算 ${currentResults.length} 个模型的价格`);
+        
+        exportBtn.disabled = false;
+        copyBtn.disabled = false;
+        generateSqlBtn.disabled = false;
+        
+      } catch (error) {
+        showMessage('error', `❌ 分析失败: ${error.message}`);
+        console.error('分析错误:', error);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // 加载示例数据
+    sampleBtn.addEventListener('click', async () => {
+      setLoading(true);
+      hideResults();
+
+      try {
+        showMessage('info', '🧪 正在加载示例数据...');
+        engine.loadSampleData();
+        
+        showMessage('info', '🧠 正在智能推断隐藏基础价...');
+        const inference = engine.inferBasePrice();
+        
+        showMessage('info', '💰 正在计算所有模型价格...');
+        currentResults = engine.calculatePricing();
+        
+        displayStats(inference);
+        displayResults(currentResults);
+        
+        showMessage('success', `✅ 示例数据分析完成！`);
+        
+        exportBtn.disabled = false;
+        copyBtn.disabled = false;
+        generateSqlBtn.disabled = false;
+        
+      } catch (error) {
+        showMessage('error', `❌ 加载示例数据失败: ${error.message}`);
+        console.error('示例数据错误:', error);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // 导出 CSV
+    exportBtn.addEventListener('click', () => {
+      try {
+        const csv = engine.exportToCSV();
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `newapi_pricing_${Date.now()}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showMessage('success', '✅ CSV 文件已导出');
+      } catch (error) {
+        showMessage('error', `❌ 导出失败: ${error.message}`);
+      }
+    });
+
+    // 复制表格数据
+    copyBtn.addEventListener('click', async () => {
+      try {
+        const csv = engine.exportToCSV();
+        await navigator.clipboard.writeText(csv);
+        showMessage('success', '✅ 表格数据已复制到剪贴板');
+      } catch (error) {
+        showMessage('error', `❌ 复制失败: ${error.message}`);
+      }
+    });
+
+    // 生成 SQL
+    generateSqlBtn.addEventListener('click', () => {
+      if (!currentResults || currentResults.length === 0) {
+        showSqlMessage('error', '⚠️ 请先完成价格分析');
+        return;
+      }
+
+      const mode = document.getElementById('sqlMode').value;
+      const prefix = document.getElementById('modelPrefix').value.trim();
+      
+      // 分类收集数据
+      const modelPrices = {};
+      const modelRatios = {};
+      const completionRatios = {};
+      
+      let perUseCount = 0;
+      let usageBasedCount = 0;
+      
+      currentResults.forEach(m => {
+        const finalModelName = prefix ? prefix + m.smartName : m.smartName;
+        
+        if (m.quotaType === 1) {
+          modelPrices[finalModelName] = parseFloat(m.inputPrice.toFixed(4));
+          perUseCount++;
+        } else {
+          if (m.modelRatio !== undefined && m.modelRatio !== null) {
+            modelRatios[finalModelName] = m.modelRatio;
+          }
+          if (m.completionRatio !== undefined && m.completionRatio !== null) {
+            completionRatios[finalModelName] = m.completionRatio;
+          }
+          usageBasedCount++;
+        }
+      });
+
+      let sql = '-- ==========================================\n';
+      sql += '-- New API 智能合并定价配置 SQL\n';
+      sql += '-- ==========================================\n';
+      sql += '-- 生成时间: ' + new Date().toLocaleString('zh-CN') + '\n';
+      sql += '-- SQL 模式: ' + (mode === 'merge' ? '合并模式' : '带备份模式') + '\n';
+      sql += '-- 模型前缀: ' + (prefix || '无前缀') + '\n';
+      sql += '-- ⚠️ 重要说明：此 SQL 使用智能合并策略\n';
+      sql += '-- 只会更新/添加当前前缀的模型，不会删除其他前缀/渠道的配置\n';
+      sql += '-- ==========================================\n\n';
+
+      if (mode === 'backup') {
+        sql += '-- 第一步：备份现有配置（可选）\n';
+        sql += 'CREATE TABLE IF NOT EXISTS options_backup_' + Date.now() + ' AS SELECT * FROM options WHERE key IN (\'ModelPrice\', \'ModelRatio\', \'CompletionRatio\');\n\n';
+      }
+
+      sql += '-- ==========================================\n';
+      sql += '-- 智能合并 SQL 语句（可直接执行）\n';
+      sql += '-- ==========================================\n';
+      sql += '-- 使用 JSON_SET() 函数逐个更新模型配置\n';
+      sql += '-- 保留现有配置，只更新/添加当前前缀的模型\n';
+      sql += '-- ==========================================\n\n';
+
+      // ModelPrice
+      if (perUseCount > 0) {
+        sql += '-- ModelPrice (按次计费模型，共 ' + perUseCount + ' 个)\n';
+        Object.entries(modelPrices).forEach(([modelName, price]) => {
+          // 转义双引号和反斜杠（JSON 路径要求）
+          const escapedName = modelName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          sql += `UPDATE options SET value = JSON_SET(COALESCE(value, '{}'), '$."${escapedName}"', ${price}) WHERE \`key\` = 'ModelPrice';\n`;
+        });
+        sql += '\n';
+      }
+
+      // ModelRatio
+      if (usageBasedCount > 0 && Object.keys(modelRatios).length > 0) {
+        sql += '-- ModelRatio (按量计费模型，共 ' + Object.keys(modelRatios).length + ' 个)\n';
+        Object.entries(modelRatios).forEach(([modelName, ratio]) => {
+          const escapedName = modelName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          sql += `UPDATE options SET value = JSON_SET(COALESCE(value, '{}'), '$."${escapedName}"', ${ratio}) WHERE \`key\` = 'ModelRatio';\n`;
+        });
+        sql += '\n';
+      }
+
+      // CompletionRatio
+      if (Object.keys(completionRatios).length > 0) {
+        sql += '-- CompletionRatio (输出倍率，共 ' + Object.keys(completionRatios).length + ' 个)\n';
+        Object.entries(completionRatios).forEach(([modelName, ratio]) => {
+          const escapedName = modelName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          sql += `UPDATE options SET value = JSON_SET(COALESCE(value, '{}'), '$."${escapedName}"', ${ratio}) WHERE \`key\` = 'CompletionRatio';\n`;
+        });
+        sql += '\n';
+      }
+
+      sql += '-- ==========================================\n';
+      sql += '-- 更新统计\n';
+      sql += '-- ==========================================\n';
+      sql += '-- 按次计费模型: ' + perUseCount + ' 个\n';
+      sql += '-- 按量计费模型: ' + usageBasedCount + ' 个\n';
+      sql += '-- 总计: ' + currentResults.length + ' 个模型\n';
+
+      generatedSQL = sql;
+      sqlOutput.textContent = sql;
+      sqlOutput.classList.add('show');
+      copySqlBtn.disabled = false;
+      
+      showSqlMessage('success', '✅ SQL 已生成成功！共 ' + currentResults.length + ' 个模型');
+    });
+
+    // 复制 SQL
+    copySqlBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(generatedSQL);
+        showSqlMessage('success', '✅ SQL 已复制到剪贴板');
+      } catch (error) {
+        showSqlMessage('error', '❌ 复制失败: ' + error.message);
+      }
+    });
+
+    // 工具函数
+    function setLoading(isLoading) {
+      analyzeBtn.disabled = isLoading;
+      sampleBtn.disabled = isLoading;
+      
+      if (isLoading) {
+        analyzeBtn.innerHTML = '<span class="spinner"></span><span>分析中...</span>';
+      } else {
+        analyzeBtn.innerHTML = '<span>🔍</span><span>开始智能分析</span>';
+      }
+    }
+
+    function hideResults() {
+      statsCard.classList.remove('show');
+      resultsCard.classList.remove('show');
+      exportBtn.disabled = true;
+      copyBtn.disabled = true;
+      generateSqlBtn.disabled = true;
+      sqlOutput.classList.remove('show');
+      copySqlBtn.disabled = true;
+    }
+
+    function showMessage(type, text) {
+      messageArea.innerHTML = `
+        <div class="message-card message-${type} show">
+          <span class="message-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+          <span>${text}</span>
+        </div>
+      `;
+    }
+
+    function showSqlMessage(type, text) {
+      sqlMessageArea.innerHTML = `
+        <div class="message-card message-${type} show">
+          <span class="message-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+          <span>${text}</span>
+        </div>
+      `;
+    }
+
+    function displayStats(inference) {
+      document.getElementById('basePriceStat').textContent = '$' + inference.basePrice.toFixed(2);
+      document.getElementById('confidenceStat').textContent = inference.confidence + '%';
+      document.getElementById('matchedStat').textContent = inference.matchedModels;
+      document.getElementById('totalStat').textContent = inference.totalModels;
+      
+      statsCard.classList.add('show');
+    }
+
+    function displayResults(results) {
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = '';
+      
+      results.forEach(model => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td class="model-name">${model.modelName}</td>
+          <td>${model.smartName}</td>
+          <td><span class="mode-badge mode-${model.quotaType === 1 ? 'peruse' : 'usage'}">${model.quotaType === 1 ? '按次' : '按量'}</span></td>
+          <td class="price-cell">${model.inputPrice.toFixed(4)}</td>
+          <td class="price-cell">${model.outputPrice.toFixed(4)}</td>
+          <td>${model.modelRatio !== null ? model.modelRatio.toFixed(2) : '-'}</td>
+          <td>${model.completionRatio !== null ? model.completionRatio.toFixed(2) : '-'}</td>
+        `;
+      });
+      
+      resultsCard.classList.add('show');
+    }
+  </script>
+</body>
+</html>
