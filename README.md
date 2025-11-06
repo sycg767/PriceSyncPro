@@ -1,18 +1,25 @@
 # 🚀 PriceSyncPro
 
-**New API 智能价格同步工具** - 一键同步上游模型定价，解决自定义前缀导致的价格同步失效问题
+**New API & One Hub 智能价格同步工具** - 一键同步上游模型定价，支持 New API 和 One Hub 双系统
 
 [![GitHub](https://img.shields.io/badge/GitHub-sycg767%2FPriceSyncPro-blue?logo=github)](https://github.com/sycg767/PriceSyncPro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.0-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
 
 ---
 
 ## 💡 这个工具解决什么问题？
 
-当你在 New API 中给模型添加自定义前缀（例如 `KYX/claude-3.5-sonnet`），系统自带的"同步上游倍率"功能会失效。
+当你在 **New API** 或 **One Hub** 中给模型添加自定义前缀（例如 `KYX/claude-3.5-sonnet`），系统自带的"同步上游倍率"功能会失效。
 
 **PriceSyncPro 提供完美解决方案！**
+
+### 🎯 支持的系统
+
+- ✅ **New API** - 完整支持所有功能
+- ✅ **One Hub** - 完整支持官方 API 和实例 API
+  - 官方 API：`/api/available_model`
+  - 实例 API：`/panel/model_price`
 
 ---
 
@@ -45,7 +52,9 @@
 #### 第三步：使用插件
 
 1. 点击浏览器工具栏的 **PriceSyncPro** 图标
-2. 输入**上游定价 URL**（例如：`https://api.example.com/api/pricing`）
+2. 输入**上游定价 URL**：
+   - **New API**：`https://your-api.com/api/pricing`
+   - **One Hub**：`https://your-hub.com/api/available_model`
 3. 输入**模型前缀**（可选，例如：`KYX/`）
 4. 点击 **"⚡ 快速更新（分析+同步）"** 按钮
 5. 等待完成，查看更新统计
@@ -116,7 +125,15 @@
 - 内置 120+ 主流模型官方价格数据库
 - 智能识别多种前缀格式
 
-### 🎯 精确计算
+### 🌐 多系统支持
+- **New API**：完整支持标准 `/api/pricing` 端点
+- **One Hub**：
+  - 支持官方 API 格式（`/api/available_model`）
+  - 支持实例 API 格式（`/panel/model_price`）
+  - 自动检测和转换数据格式
+  - 智能处理价格单位（$/1K → $/1M）
+
+###  精确计算
 支持多种前缀格式：
 - `KYX/claude-3.5-sonnet`
 - `4o速率高/gpt-4o`
@@ -136,19 +153,20 @@
 ```
 PriceSyncPro/
 ├── README.md                          # 本文档
+├── CHANGELOG.md                       # 更新日志
 ├── PriceSyncPro-Extension/            # 🔌 浏览器插件（推荐）
 │   ├── manifest.json                  # 插件配置
 │   ├── popup.html                     # 插件界面
 │   ├── popup.js                       # 插件逻辑
-│   ├── content.js                     # 核心同步脚本
+│   ├── content.js                     # 核心同步脚本（支持 One Hub）
 │   ├── background.js                  # 后台服务
 │   ├── official_prices.json           # 官方价格数据库
 │   ├── README.md                      # 插件详细文档
 │   ├── USAGE_GUIDE.md                 # 使用指南
 │   └── icons/                         # 插件图标
 └── PriceSyncPro-WebVersion/           # 🌐 Web 版本（备选）
-    ├── index.html                     # Web 界面
-    ├── pricing-engine.js              # 定价引擎
+    ├── index.html                     # Web 界面（支持 One Hub）
+    ├── pricing-engine.js              # 定价引擎（支持 One Hub）
     ├── official_prices.json           # 官方价格数据库
     ├── start_server.bat               # 启动脚本
     └── README.md                      # Web 版本文档
@@ -158,26 +176,45 @@ PriceSyncPro/
 
 ## ❓ 常见问题
 
-### Q1: 插件为什么不需要 API Token？
+### Q1: 支持哪些 API 系统？
 
-**答**：插件运行在 New API 页面中，自动使用浏览器的登录 Cookie 进行认证，比 API Token 更安全。
+**答**：
+- ✅ **New API**：完整支持，使用 `/api/pricing` 端点
+- ✅ **One Hub**：完整支持两种格式
+  - 官方 API：`/api/available_model`（数组格式）
+  - 实例 API：`/panel/model_price`（对象格式）
 
-### Q2: 如何验证价格是否正确？
+工具会自动检测和转换不同的数据格式。
+
+### Q2: 插件为什么不需要 API Token？
+
+**答**：插件运行在 New API/One Hub 页面中，自动使用浏览器的登录 Cookie 进行认证，比 API Token 更安全。
+
+### Q3: 如何验证价格是否正确？
 
 **答**：
 1. 查看工具显示的"置信度"（90%+ 说明准确）
 2. 在后台"模型倍率设置"中对比几个常用模型
 3. 手动计算：`官方价格 / model_ratio = 基础价`
 
-### Q3: 会覆盖其他渠道的配置吗？
+### Q4: One Hub 的价格单位是什么？
+
+**答**：One Hub 使用特殊的价格单位：
+- 内部单位需要 ÷500 转换为美元
+- 按量计费使用 $/1K（工具会自动转换为 $/1M）
+- 按次计费直接使用转换后的价格
+
+工具会自动处理所有转换，无需手动计算。
+
+### Q5: 会覆盖其他渠道的配置吗？
 
 **答**：不会。工具使用智能合并策略，只更新当前前缀的模型，完全保留其他渠道配置。
 
-### Q4: 插件支持哪些浏览器？
+### Q6: 插件支持哪些浏览器？
 
 **答**：支持所有基于 Chromium 的浏览器（Chrome、Edge、Brave、Opera 等）。
 
-### Q5: Web 版本为什么需要本地服务器？
+### Q7: Web 版本为什么需要本地服务器？
 
 **答**：浏览器的 CORS 安全策略禁止 `file://` 协议的页面访问远程 API。使用本地服务器（`http://localhost`）可以绕过这个限制。
 
@@ -244,4 +281,4 @@ MIT License - 可自由使用、修改、分发
 
 ---
 
-**PriceSyncPro | 智能价格同步工具 | 让价格管理更简单** 🚀
+**PriceSyncPro | 支持 New API & One Hub | 智能价格同步工具 | 让价格管理更简单** 🚀

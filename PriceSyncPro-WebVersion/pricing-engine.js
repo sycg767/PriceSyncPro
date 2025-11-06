@@ -187,6 +187,115 @@ class PricingEngine {
     this.apiUrl = ''; // 保存 API URL
   }
   
+  /**
+   * 转换 One Hub API 格式到标准格式
+   * 支持两种格式：
+   * 1. 数组格式: [{ model, type, channel_type, input, output }, ...]
+   * 2. 对象格式: { data: { "model-name": { groups, owned_by, price: {...} }, ... } }
+   * 标准格式: { model_name, quota_type, model_ratio, completion_ratio, model_price }
+   */
+  convertOneHubFormat(data) {
+    // 格式 1: 数组格式（官方价格 API）
+    if (Array.isArray(data) && data.length > 0 && data[0].model && data[0].type && data[0].input !== undefined) {
+      console.log('🔄 检测到 One Hub 官方价格 API 格式（数组），开始转换...');
+      
+      const converted = data.map(item => {
+        // One Hub 使用 "tokens" 表示按量计费
+        const isTokenBased = item.type === 'tokens';
+        
+        // 转换为标准格式
+        const standardItem = {
+          model_name: item.model,
+          quota_type: isTokenBased ? 0 : 1, // 0=按量, 1=按次
+          model_ratio: item.input || 0,
+          completion_ratio: item.output && item.input ? (item.output / item.input) : 1,
+          model_price: isTokenBased ? 0 : item.input || 0
+        };
+        
+        return standardItem;
+      });
+      
+      console.log(`✅ One Hub 官方格式转换完成: ${converted.length} 个模型`);
+      console.log('📊 转换示例:', converted.slice(0, 2));
+      
+      return converted;
+    }
+    
+    // 格式 2: 对象格式（实例 available_model API）
+    if (data && typeof data === 'object' && data.data && typeof data.data === 'object') {
+      console.log('🔄 检测到 One Hub 实例 API 格式（对象），开始转换...');
+      
+      const converted = [];
+      const modelsData = data.data;
+      
+      for (const [modelName, modelInfo] of Object.entries(modelsData)) {
+        if (!modelInfo || !modelInfo.price) continue;
+        
+        const priceInfo = modelInfo.price;
+        const modelType = priceInfo.model || modelName;
+        const type = priceInfo.type || 'times';
+        
+        // 判断计费类型
+        // One Hub 使用 "times" 表示按次计费，"tokens" 表示按量计费
+        const isPerUse = type === 'times';
+        
+        // 提取价格（One Hub 的价格单位需要转换）
+        // One Hub 存储的是内部单位，需要除以 500 转换为美元
+        // 特殊处理：0 或负数表示免费
+        const ONE_HUB_PRICE_DIVISOR = 500;
+        const rawInput = priceInfo.input || 0;
+        const rawOutput = priceInfo.output || 0;
+        
+        // 检查是否为免费模型（价格为 0 或负数）
+        const isFree = rawInput <= 0 && rawOutput <= 0;
+        
+        let inputPrice = 0;
+        let outputPrice = 0;
+        
+        if (!isFree) {
+          inputPrice = rawInput / ONE_HUB_PRICE_DIVISOR;
+          outputPrice = rawOutput / ONE_HUB_PRICE_DIVISOR;
+          
+          // 🔧 关键修复：按量计费需要从 $/1K 转换为 $/1M
+          // One Hub 按量计费显示为 $/1K，New API 使用 $/1M
+          // 因此需要乘以 1000
+          if (!isPerUse) {
+            inputPrice = inputPrice * 1000;
+            outputPrice = outputPrice * 1000;
+            console.log(`  🔧 ${modelType} (按量): 原始 ${rawInput}/${ONE_HUB_PRICE_DIVISOR} = $${rawInput / ONE_HUB_PRICE_DIVISOR}/1K → 转换为 $${inputPrice}/1M`);
+          } else {
+            console.log(`  🔧 ${modelType} (按次): 原始 input=${rawInput}, output=${rawOutput} → 转换后 $${inputPrice}, $${outputPrice}`);
+          }
+        } else {
+          console.log(`  🆓 ${modelType} (免费): input=${rawInput}, output=${rawOutput} → Free`);
+        }
+        
+        // 转换为标准格式
+        const standardItem = {
+          model_name: modelType,
+          quota_type: isPerUse ? 1 : 0, // 0=按量, 1=按次
+          // 对于按次计费：直接使用转换后的价格
+          // 对于按量计费：价格就是 ratio（因为我们会设置 basePrice=1）
+          model_ratio: inputPrice,
+          completion_ratio: inputPrice > 0 ? (outputPrice / inputPrice) : 1,
+          model_price: isPerUse ? inputPrice : 0,
+          // 标记这是 One Hub 直接价格格式
+          _isOneHubDirectPrice: true
+        };
+        
+        converted.push(standardItem);
+      }
+      
+      console.log(`✅ One Hub 实例格式转换完成: ${converted.length} 个模型`);
+      console.log('📊 转换示例:', converted.slice(0, 2));
+      
+      return converted;
+    }
+    
+    // 不是 One Hub 格式，返回原数据
+    return data;
+  }
+  
   // 检测是否为特殊价格格式的网站
   // 参数：apiUrl - 上游API的URL
   isDirectPriceWebsite(apiUrl = '') {
@@ -289,6 +398,9 @@ class PricingEngine {
       if (textContent.trim().startsWith('{') || textContent.trim().startsWith('[')) {
         console.log('✓ 检测到 JSON 响应，开始解析...');
         let data = JSON.parse(textContent);
+        
+        // 🆕 优先检测并转换 One Hub 格式（在数据验证之前）
+        data = this.convertOneHubFormat(data);
         
         if (data.data && Array.isArray(data.data)) {
           this.upstreamData = data.data;
@@ -988,6 +1100,22 @@ class PricingEngine {
       throw new Error('缺少必要数据');
     }
     
+    // 🔧 One Hub 直接价格模式检测
+    const hasOneHubDirectPrice = this.upstreamData.some(m => m._isOneHubDirectPrice);
+    if (hasOneHubDirectPrice) {
+      console.log('🌐 检测到 One Hub 直接价格格式：model_ratio 直接代表价格（已转换为美元）');
+      this.inferredBasePrice = 1;
+      return {
+        basePrice: 1,
+        confidence: 100,
+        matchedModels: this.upstreamData.length,
+        totalModels: this.upstreamData.length,
+        distribution: {},
+        note: 'One Hub 直接价格模式',
+        isOneHubDirectPrice: true
+      };
+    }
+    
     // 🔧 特殊网站：直接价格模式
     if (this.isDirectPriceWebsite(this.apiUrl)) {
       console.log('🌐 检测到特殊网站（直接价格模式）：model_ratio 直接代表价格');
@@ -1370,10 +1498,13 @@ class PricingEngine {
     }
 
     this.results = [];
+    const hasOneHubDirectPrice = this.upstreamData.some(m => m._isOneHubDirectPrice);
     const isDirectPrice = this.isDirectPriceWebsite(this.apiUrl);
     const priceMultiplier = isDirectPrice ? 2 : 1; // dev88.tech 需要 2倍转换
     
-    if (isDirectPrice) {
+    if (hasOneHubDirectPrice) {
+      console.log('💰 使用 One Hub 直接价格模式（已转换为美元）');
+    } else if (isDirectPrice) {
       console.log('💰 使用直接价格模式，转换系数: 2x');
     }
 
@@ -1394,11 +1525,19 @@ class PricingEngine {
         // completion_ratio 为 0 时保留 0（表示输出免费）
         const completionRatio = (model.completion_ratio !== undefined && model.completion_ratio !== null) ? model.completion_ratio : 1;
 
-        // 🔧 直接价格模式处理
-        if (isDirectPrice) {
+        // 🔧 One Hub 直接价格模式
+        if (hasOneHubDirectPrice || model._isOneHubDirectPrice) {
+          // One Hub 直接价格：model_ratio 已经是转换后的美元价格
+          // 无需再次转换，直接使用
+          inputPrice = modelRatio;
+        }
+        // 🔧 其他直接价格模式
+        else if (isDirectPrice) {
           // 直接价格模式：model_ratio 就是价格，乘以转换系数
           inputPrice = modelRatio * priceMultiplier;
-        } else {
+        }
+        // 标准模式
+        else {
           // 标准模式：basePrice × modelRatio
           inputPrice = this.inferredBasePrice * modelRatio;
         }

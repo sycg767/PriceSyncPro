@@ -7,6 +7,39 @@
 
 ---
 
+## [1.1.0] - 2025-11-06
+
+### ✨ 新增功能
+
+#### One Hub API 完整支持
+- **多格式兼容**
+  - 支持 One Hub 官方 API 格式（`/api/available_model`）
+  - 支持 One Hub 实例 API 格式（`/panel/model_price`）
+  - 自动检测和转换两种 One Hub 数据格式
+  
+- **智能价格转换**
+  - 自动处理 One Hub 内部单位（÷500）
+  - 智能转换 $/1K 到 $/1M（按量计费模型）
+  - 正确处理按次计费模型价格
+  - 自动识别免费模型（input ≤ 0 && output ≤ 0）
+
+- **用户体验优化**
+  - 插件和 Web 版本均添加 API 端点提示
+  - 清晰标注 New API 和 One Hub 的端点路径
+  - 简化用户输入，减少错误
+
+### 📚 文档更新
+- 更新使用指南，添加 One Hub 使用说明
+- 完善 README，补充 One Hub 支持信息
+- 更新 CHANGELOG，记录所有新功能
+
+### 🔧 技术改进
+- 优化格式检测逻辑，提升兼容性
+- 增强错误处理，更友好的错误提示
+- 代码重构，提高可维护性
+
+---
+
 ## [1.0.0] - 2025-11-05
 
 ### 🎉 首个正式版发布
@@ -106,4 +139,5 @@
 
 ---
 
+[1.1.0]: https://github.com/sycg767/PriceSyncPro/releases/tag/v1.1.0
 [1.0.0]: https://github.com/sycg767/PriceSyncPro/releases/tag/v1.0.0
