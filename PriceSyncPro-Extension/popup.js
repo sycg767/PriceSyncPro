@@ -43,7 +43,6 @@ document.addEventListener('keydown', (e) => {
 // DOM 元素
 const analyzeBtn = document.getElementById('analyzeBtn');
 const syncBtn = document.getElementById('syncBtn');
-const exportSqlBtn = document.getElementById('exportSqlBtn');
 const quickUpdateBtn = document.getElementById('quickUpdateBtn');
 const upstreamUrlInput = document.getElementById('upstreamUrl');
 const modelPrefixInput = document.getElementById('modelPrefix');
@@ -923,7 +922,6 @@ quickUpdateBtn.addEventListener('click', async () => {
       showStatus(statusMsg, 'success');
       
       syncBtn.disabled = false;
-      exportSqlBtn.disabled = false;
     } else {
       showStatus(`❌ 同步失败：${syncResponse.error}`, 'error');
     }
@@ -1115,9 +1113,8 @@ if (refreshBtn) {
     currentResults = null;
     currentApiUrl = '';
     
-    // 禁用同步和导出按钮
+    // 禁用同步按钮
     syncBtn.disabled = true;
-    exportSqlBtn.disabled = true;
     
     // 显示刷新提示
     showStatus('🔄 已刷新页面状态', 'info');
@@ -1542,7 +1539,6 @@ analyzeBtn.addEventListener('click', async () => {
       showStatus(statusMsg, 'success');
 
       syncBtn.disabled = false;
-      exportSqlBtn.disabled = false;
     } else {
       showStatus(`❌ 分析失败：${response.error}`, 'error');
       resultsSection.classList.remove('show');
@@ -1663,59 +1659,5 @@ syncBtn.addEventListener('click', async () => {
   } finally {
     syncBtn.disabled = false;
     syncBtn.innerHTML = '🚀 一键同步到后台';
-  }
-});
-
-// 生成并复制 SQL
-exportSqlBtn.addEventListener('click', async () => {
-  if (!currentResults) {
-    showStatus('⚠️ 请先完成价格分析', 'error');
-    return;
-  }
-
-  const prefix = modelPrefixInput.value.trim();
-
-  try {
-    // 向 content script 发送消息
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    const result = await sendMessageWithRetry(tab.id, {
-      action: 'generateSQL',
-      results: currentResults,
-      prefix: prefix
-    });
-    
-    if (!result.success) {
-      if (result.needRefresh) {
-        showStatus(
-          '❌ 连接页面失败<br><br>' +
-          '💡 <strong>请刷新页面后重试</strong>',
-          'error'
-        );
-      } else {
-        showStatus(`❌ 错误：${result.error}`, 'error');
-      }
-      return;
-    }
-    
-    const response = result.response;
-
-    if (response.success) {
-      // 复制到剪贴板
-      await navigator.clipboard.writeText(response.sql);
-      
-      showStatus(
-        `✅ SQL 已生成并复制到剪贴板！<br><br>` +
-        `📊 统计：<br>` +
-        `• ModelPrice: ${response.stats.modelPriceCount} 个<br>` +
-        `• ModelRatio: ${response.stats.modelRatioCount} 个<br>` +
-        `• CompletionRatio: ${response.stats.completionRatioCount} 个`,
-        'success'
-      );
-    } else {
-      showStatus(`❌ 生成失败：${response.error}`, 'error');
-    }
-  } catch (error) {
-    showStatus(`❌ 错误：${error.message}`, 'error');
   }
 });
