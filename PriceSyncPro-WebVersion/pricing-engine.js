@@ -399,15 +399,30 @@ class PricingEngine {
         console.log('✓ 检测到 JSON 响应，开始解析...');
         let data = JSON.parse(textContent);
         
-        // 🆕 优先检测并转换 One Hub 格式（在数据验证之前）
-        data = this.convertOneHubFormat(data);
-        
+        // 先检查数据格式
         if (data.data && Array.isArray(data.data)) {
           this.upstreamData = data.data;
         } else if (Array.isArray(data)) {
           this.upstreamData = data;
         } else {
-          throw new Error('无法识别的 JSON 数据格式');
+          // 🆕 在抛出错误之前，尝试 One Hub 对象格式转换
+          const converted = this.convertOneHubFormat(data);
+          if (Array.isArray(converted)) {
+            this.upstreamData = converted;
+            console.log('✓ One Hub 格式转换成功，模型数量:', this.upstreamData.length);
+          } else {
+            throw new Error('无法识别的 JSON 数据格式');
+          }
+        }
+        
+        // 🆕 如果已经是数组，检查是否为 One Hub 数组格式
+        if (this.upstreamData) {
+          const converted = this.convertOneHubFormat(this.upstreamData);
+          if (converted !== this.upstreamData) {
+            // 转换成功，使用转换后的数据
+            this.upstreamData = converted;
+            console.log('✓ One Hub 数组格式转换成功');
+          }
         }
         
         console.log(`✅ 成功加载 ${this.upstreamData.length} 个模型配置`);
