@@ -104,13 +104,16 @@ function convertOneHubFormat(data) {
         inputPrice = rawInput / ONE_HUB_PRICE_DIVISOR;
         outputPrice = rawOutput / ONE_HUB_PRICE_DIVISOR;
         
-        // 🔧 关键修复：按量计费需要从 $/1K 转换为 $/1M
-        // One Hub 按量计费显示为 $/1K，New API 使用 $/1M
-        // 因此需要乘以 1000
+        // 🔧 关键修复：New API 的 ModelRatio 是倍率，不是价格
+        // 我们需要除以 2 来得到正确的倍率（New API 内部会乘以 2）
         if (!isPerUse) {
-          inputPrice = inputPrice * 1000;
-          outputPrice = outputPrice * 1000;
-          console.log(`  🔧 ${modelType} (按量): 原始 ${rawInput}/${ONE_HUB_PRICE_DIVISOR} = $${rawInput / ONE_HUB_PRICE_DIVISOR}/1K → 转换为 $${inputPrice}/1M`);
+          // 按量计费：从 $/1K 转换为倍率
+          // 步骤1: inputPrice 已经是 $/1K（例如 0.012）
+          // 步骤2: 乘以 1000 转换为 $/1M（例如 12）
+          // 步骤3: 除以 2 得到 New API 的倍率（例如 6）
+          inputPrice = (inputPrice * 1000) / 2;
+          outputPrice = (outputPrice * 1000) / 2;
+          console.log(`  🔧 ${modelType} (按量): 原始 ${rawInput}/${ONE_HUB_PRICE_DIVISOR} = $${rawInput / ONE_HUB_PRICE_DIVISOR}/1K → $/1M=${(rawInput / ONE_HUB_PRICE_DIVISOR) * 1000} → 倍率=${inputPrice}`);
         } else {
           console.log(`  🔧 ${modelType} (按次): 原始 input=${rawInput}, output=${rawOutput} → 转换后 $${inputPrice}, $${outputPrice}`);
         }
@@ -123,7 +126,7 @@ function convertOneHubFormat(data) {
         model_name: modelType,
         quota_type: isPerUse ? 1 : 0, // 0=按量, 1=按次
         // 对于按次计费：直接使用转换后的价格
-        // 对于按量计费：价格就是 ratio（因为我们会设置 basePrice=1）
+        // 对于按量计费：这是倍率（会被 New API 乘以内部基础价 2）
         model_ratio: inputPrice,
         completion_ratio: inputPrice > 0 ? (outputPrice / inputPrice) : 1,
         model_price: isPerUse ? inputPrice : 0,
@@ -458,12 +461,16 @@ function initPricingEngine(upstreamData) {
       const results = [];
       const hasOneHubDirectPrice = this.rawData.some(m => m._isOneHubDirectPrice);
       const isDirectPrice = this.isDirectPriceWebsite(this.apiUrl || window._currentApiUrl || '');
-      const priceMultiplier = isDirectPrice ? 2 : 1; // dev88.tech 需要 2倍转换
+      
+      // 🔧 修复：One Hub 格式已经完成转换，不需要额外的倍数
+      const priceMultiplier = (hasOneHubDirectPrice || !isDirectPrice) ? 1 : 2;
       
       if (hasOneHubDirectPrice) {
-        console.log('💰 使用 One Hub 直接价格模式（已转换为美元）');
+        console.log('💰 使用 One Hub 直接价格模式（已转换为美元，无需额外处理）');
       } else if (isDirectPrice) {
         console.log('💰 使用直接价格模式，转换系数: 2x');
+      } else {
+        console.log('💰 使用标准价格模式，转换系数: 1x');
       }
       
       for (const model of this.rawData) {
@@ -486,19 +493,22 @@ function initPricingEngine(upstreamData) {
           
           // 🔧 One Hub 直接价格模式
           if (hasOneHubDirectPrice || model._isOneHubDirectPrice) {
-            // One Hub 直接价格：model_ratio 已经是转换后的美元价格
-            // 无需再次转换，直接使用
+            // One Hub 直接价格：model_ratio 已经是转换后的美元价格（包含了$/1K到$/1M的1000倍转换）
+            // 无需任何额外处理，直接使用
             inputPrice = modelRatio;
+            console.log(`  💰 One Hub模式 - ${model.model_name}: 直接使用 modelRatio = $${inputPrice}`);
           }
           // 🔧 其他直接价格模式
           else if (isDirectPrice) {
-            // 直接价格模式：model_ratio 就是价格，乘以转换系数
+            // 直接价格模式：model_ratio 就是价格，乘以转换系数（通常为2）
             inputPrice = modelRatio * priceMultiplier;
+            console.log(`  💰 直接价格模式 - ${model.model_name}: ${modelRatio} × ${priceMultiplier} = $${inputPrice}`);
           }
           // 标准模式
           else {
             // 标准模式：basePrice × modelRatio
             inputPrice = basePrice * modelRatio;
+            console.log(`  💰 标准模式 - ${model.model_name}: ${basePrice} × ${modelRatio} = $${inputPrice}`);
           }
           outputPrice = inputPrice * completionRatio;
         }
