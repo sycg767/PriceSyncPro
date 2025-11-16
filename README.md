@@ -4,7 +4,7 @@
 
 [![GitHub](https://img.shields.io/badge/GitHub-sycg767%2FPriceSyncPro-blue?logo=github)](https://github.com/sycg767/PriceSyncPro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.0-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.0-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
 
 ---
 
@@ -34,6 +34,7 @@
 - **🎯 更便捷**：直接在 New API 后台使用，无需切换工具
 - **💾 配置预设**：保存常用配置，下次一键加载
 - **📊 实时反馈**：5 阶段进度条，清晰展示同步状态
+- **🔄 模型列表同步**：自动获取上游最新模型列表并更新到渠道
 
 ### 🚀 快速开始
 
@@ -60,6 +61,14 @@
 3. 输入**模型前缀**（可选，例如：`KYX/`）
 4. 点击 **"⚡ 快速更新（分析+同步）"** 按钮
 5. 等待完成，价格将同步到你的 New API 后台
+
+#### 额外功能：同步模型列表
+
+如果上游渠道有新模型上架或下架：
+
+1. 点击 **"🔄 同步上游模型列表"** 按钮
+2. 输入渠道 ID（在渠道管理页面查看）
+3. 确认同步，自动更新模型列表和 model_mapping
 
 **就这么简单！** 🎉
 
@@ -126,6 +135,7 @@
 - 支持按次计费和按量计费两种模式
 - 内置 120+ 主流模型官方价格数据库
 - 智能识别多种前缀格式
+- 自动同步上游模型列表到渠道配置
 
 ### 🌐 多上游数据源支持
 - **New API 作为上游**：支持标准 `/api/pricing` 端点

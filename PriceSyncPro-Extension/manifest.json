@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PriceSyncPro - New API 定价同步助手",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "在 New API 管理后台中一键同步上游模型定价，自动更新 ModelPrice、ModelRatio 和 CompletionRatio 配置",
   "icons": {
     "16": "icons/icon16.png",

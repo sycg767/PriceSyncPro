@@ -1046,6 +1046,307 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         });
       }
+      else if (request.action === 'getChannelList') {
+        // 获取渠道列表
+        console.log('📋 开始获取渠道列表...');
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        // 获取所有渠道（不分页，获取全部）
+        console.log(`📡 请求渠道列表: ${apiUrl}/api/channel/?page_size=1000`);
+        
+        const channelsResponse = await fetch(`${apiUrl}/api/channel/?page_size=1000`, {
+          method: 'GET',
+          headers: headers,
+          credentials: 'include'
+        });
+        
+        if (!channelsResponse.ok) {
+          throw new Error(`获取渠道列表失败 (HTTP ${channelsResponse.status})`);
+        }
+        
+        const channelsData = await channelsResponse.json();
+        console.log('📦 渠道列表数据:', channelsData);
+        
+        if (!channelsData.success || !channelsData.data) {
+          throw new Error('渠道列表数据格式错误');
+        }
+        
+        // 支持两种数据格式：直接数组或包含 items 的对象
+        const channelList = Array.isArray(channelsData.data)
+          ? channelsData.data
+          : (channelsData.data.items || []);
+        
+        if (!Array.isArray(channelList) || channelList.length === 0) {
+          throw new Error('渠道列表为空');
+        }
+        
+        const channels = channelList.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          type: ch.type,
+          baseUrl: ch.base_url,
+          tag: ch.tag,
+          models: ch.models ? ch.models.split(',').length : 0
+        }));
+        
+        console.log(`✅ 获取到 ${channels.length} 个渠道`);
+        
+        sendResponse({
+          success: true,
+          channels: channels
+        });
+      }
+      else if (request.action === 'syncChannelModels') {
+        // 同步渠道模型列表
+        const { channelId, prefix, tokenGroup, upstreamUrl } = request;
+        
+        console.log(`🔄 开始同步渠道 ${channelId} 的模型列表，前缀: ${prefix || '(无)'}，令牌组: ${tokenGroup || '(全部)'}`);
+        console.log(`📡 上游 URL: ${upstreamUrl || '(未提供)'}`);
+        
+        // 获取当前 API URL（后台 API）
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        // 步骤1: 从上游获取模型列表
+        console.log(`🔄 步骤 1: 从渠道 ${channelId} 获取模型列表...`);
+        const fetchModelsUrl = `${apiUrl}/api/channel/fetch_models/${channelId}`;
+        
+        let upstreamModels = [];
+        let usedFallback = false;
+        
+        try {
+          const modelsResponse = await fetch(fetchModelsUrl, {
+            method: 'GET',
+            headers: headers,
+            credentials: 'include'
+          });
+          
+          if (!modelsResponse.ok) {
+            if (modelsResponse.status === 401 || modelsResponse.status === 403) {
+              console.log(`⚠️ /models 接口返回 ${modelsResponse.status}，尝试使用 /pricing 接口...`);
+              throw new Error('AUTH_FALLBACK');
+            }
+            throw new Error(`获取模型列表失败 (HTTP ${modelsResponse.status})`);
+          }
+          
+          const modelsData = await modelsResponse.json();
+          console.log('📦 上游返回数据:', modelsData);
+          console.log('📦 数据类型检查:', {
+            hasSuccess: 'success' in modelsData,
+            successValue: modelsData.success,
+            hasData: 'data' in modelsData,
+            dataType: Array.isArray(modelsData.data) ? 'array' : typeof modelsData.data,
+            dataLength: Array.isArray(modelsData.data) ? modelsData.data.length : 'N/A'
+          });
+          
+          if (!modelsData.success) {
+            const errorMsg = modelsData.message || '未知错误';
+            console.log('❌ 上游返回失败:', errorMsg);
+            if (errorMsg.includes('401') || errorMsg.includes('403') ||
+                errorMsg.includes('unauthorized') || errorMsg.includes('status code: 403')) {
+              console.log('⚠️ /models 接口认证失败，尝试使用 /pricing 接口...');
+              throw new Error('AUTH_FALLBACK');
+            }
+            throw new Error(`获取模型列表失败：${errorMsg}`);
+          }
+          
+          if (!modelsData.data) {
+            console.error('❌ modelsData.data 不存在');
+            throw new Error('上游返回数据缺少 data 字段');
+          }
+          
+          if (!Array.isArray(modelsData.data)) {
+            console.error('❌ modelsData.data 不是数组，类型:', typeof modelsData.data);
+            throw new Error(`上游返回数据格式错误：data 字段应为数组，实际为 ${typeof modelsData.data}`);
+          }
+          
+          upstreamModels = modelsData.data;
+          console.log(`✅ 获取到 ${upstreamModels.length} 个模型`);
+          
+        } catch (error) {
+          if (error.message === 'AUTH_FALLBACK') {
+            // 使用 /pricing 接口作为备选方案
+            const pricingUrl = upstreamUrl || `${apiUrl}/api/pricing`;
+            console.log(`⚠️ 认证错误（401/403），回退到 /pricing: ${pricingUrl}`);
+            
+            // 发送进度消息到popup
+            chrome.runtime.sendMessage({
+              action: 'syncProgress',
+              message: '⚠️ 无法直接获取模型列表，正在从定价接口获取...'
+            });
+            
+            // 如果是上游 URL，使用 fetchCORS；否则使用普通 fetch
+            let pricingData;
+            if (upstreamUrl) {
+              console.log('🌐 从上游 URL 获取 pricing 数据（通过 CORS）');
+              pricingData = await fetchCORS(pricingUrl);
+            } else {
+              console.log('🏠 从后台 API 获取 pricing 数据');
+              const pricingResponse = await fetch(pricingUrl, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'include'
+              });
+              
+              if (!pricingResponse.ok) {
+                throw new Error(`/pricing 接口也失败了 (HTTP ${pricingResponse.status})`);
+              }
+              
+              pricingData = await pricingResponse.json();
+            }
+            
+            console.log('📦 /pricing 返回数据:', pricingData);
+            
+            if (!pricingData.success || !pricingData.data || !Array.isArray(pricingData.data)) {
+              throw new Error('/pricing 接口数据格式错误');
+            }
+            
+            // 从 pricing data 中提取模型名称，根据令牌组过滤
+            let filteredData = pricingData.data;
+            
+            if (tokenGroup && tokenGroup.trim() !== '') {
+              console.log(`🔍 应用令牌组过滤: "${tokenGroup}"`);
+              filteredData = pricingData.data.filter(item => {
+                // enable_groups 可能是字符串或数组
+                const groups = item.enable_groups;
+                if (!groups) return false;
+                
+                if (typeof groups === 'string') {
+                  return groups === tokenGroup;
+                } else if (Array.isArray(groups)) {
+                  return groups.includes(tokenGroup);
+                }
+                return false;
+              });
+              console.log(`✓ 过滤后剩余 ${filteredData.length} 个模型`);
+            }
+            
+            upstreamModels = filteredData.map(item => item.model_name);
+            usedFallback = true;
+            console.log(`✅ 从 /pricing 提取到 ${upstreamModels.length} 个模型`);
+            
+          } else {
+            throw error;
+          }
+        }
+        
+        // 步骤2: 处理模型名称（添加前缀）
+        const modelsWithPrefix = upstreamModels.map(modelName => {
+          return prefix ? `${prefix}${modelName}` : modelName;
+        });
+        
+        console.log('📝 处理后的模型列表（前3个）:', modelsWithPrefix.slice(0, 3));
+        
+        // 步骤3: 生成 model_mapping（映射关系）
+        const modelMapping = {};
+        upstreamModels.forEach(originalName => {
+          const nameWithPrefix = prefix ? `${prefix}${originalName}` : originalName;
+          modelMapping[nameWithPrefix] = originalName;
+        });
+        
+        console.log('🗺️ 生成的 model_mapping（前3个）:',
+          Object.entries(modelMapping).slice(0, 3).reduce((obj, [k, v]) => {
+            obj[k] = v;
+            return obj;
+          }, {})
+        );
+        
+        // 步骤4: 获取渠道当前配置
+        console.log('📖 读取渠道当前配置...');
+        const channelResponse = await fetch(`${apiUrl}/api/channel/${channelId}`, {
+          method: 'GET',
+          headers: headers,
+          credentials: 'include'
+        });
+        
+        if (!channelResponse.ok) {
+          throw new Error(`获取渠道配置失败 (HTTP ${channelResponse.status})`);
+        }
+        
+        const channelData = await channelResponse.json();
+        console.log('📦 渠道当前配置:', channelData);
+        
+        if (!channelData.success || !channelData.data) {
+          throw new Error('获取渠道配置失败');
+        }
+        
+        const currentChannel = channelData.data;
+        
+        // 步骤5: 更新渠道配置
+        console.log('🔄 准备更新渠道配置...');
+        
+        // 更新 headers 添加 Content-Type
+        const updateHeaders = {
+          ...headers,
+          'Content-Type': 'application/json'
+        };
+        
+        // 构建更新数据（保留其他字段，只更新 models 和 model_mapping）
+        const updateData = {
+          ...currentChannel,
+          models: modelsWithPrefix.join(','),
+          model_mapping: JSON.stringify(modelMapping)
+        };
+        
+        console.log('📤 发送更新请求:', {
+          url: `${apiUrl}/api/channel/`,
+          modelsCount: modelsWithPrefix.length,
+          mappingCount: Object.keys(modelMapping).length
+        });
+        
+        const updateResponse = await fetch(`${apiUrl}/api/channel/`, {
+          method: 'PUT',
+          headers: updateHeaders,
+          credentials: 'include',
+          body: JSON.stringify(updateData)
+        });
+        
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          console.error('❌ 更新失败:', errorText);
+          throw new Error(`更新渠道配置失败 (HTTP ${updateResponse.status}): ${errorText}`);
+        }
+        
+        const updateResult = await updateResponse.json();
+        console.log('✅ 更新结果:', updateResult);
+        
+        if (!updateResult.success) {
+          throw new Error(`更新渠道配置失败: ${updateResult.message || '未知错误'}`);
+        }
+        
+        sendResponse({
+          success: true,
+          stats: {
+            totalModels: upstreamModels.length,
+            prefix: prefix || '(无)',
+            channelId: channelId,
+            usedFallback: usedFallback
+          },
+          message: usedFallback
+            ? '无法直接获取模型列表，已从定价信息中提取'
+            : undefined
+        });
+      }
       else if (request.action === 'generateSQL') {
         // 生成 SQL
         const { results, prefix } = request;

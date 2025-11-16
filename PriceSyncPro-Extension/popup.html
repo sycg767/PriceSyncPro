@@ -1028,6 +1028,39 @@
       font-size: 14px;
       line-height: 1.5;
     }
+    
+    /* Progress Bar */
+    .progress-bar-container {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      height: 60px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      transition: width 0.3s ease;
+      width: 0%;
+      opacity: 0.15;
+    }
+    
+    .progress-bar-text {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      line-height: 28px;
+    }
   </style>
 </head>
 <body>
@@ -1163,10 +1196,8 @@
             id="upstreamUrl"
             class="input-field"
             placeholder="https://api.example.com/api/pricing"
+            title="💡 New API：/api/pricing | One Hub：/api/available_model"
           >
-        </div>
-        <div class="input-hint">
-          💡 <strong>New API：</strong>/api/pricing&nbsp;&nbsp;&nbsp;&nbsp;<strong>One Hub：</strong>/api/available_model
         </div>
       </div>
 
@@ -1178,35 +1209,60 @@
             id="modelPrefix"
             class="input-field"
             placeholder="例如：Zen/"
+            title="💡 填写完整前缀，例如：Zen/ 或 OpenAI/（需要包含末尾的 /）"
           >
         </div>
-        <div class="input-hint">
-          💡 填写完整前缀，例如：Zen/ 或 OpenAI/（需要包含末尾的 /）
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">令牌分组（可选）</label>
+        <div class="input-wrapper">
+          <select id="tokenGroupSelect" class="input-field" title="💡 仅在使用 /pricing 接口时生效，用于筛选特定令牌组的模型">
+            <option value="">-- 获取所有模型 --</option>
+            <option value="default">default</option>
+            <option value="vip">vip</option>
+            <option value="svip">svip</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">
+          选择渠道（用于同步模型列表）
+          <button id="refreshChannelsBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="刷新渠道列表">🔄</button>
+        </label>
+        <div class="input-wrapper">
+          <select id="channelSelect" class="input-field">
+            <option value="">-- 加载中... --</option>
+          </select>
+        </div>
+        <div class="input-hint" id="channelHint" style="margin-top: 6px;">
+          💡 选择要同步模型列表的渠道
         </div>
       </div>
     </div>
 
     <!-- Buttons -->
     <div class="btn-group">
+      <button class="btn btn-primary" id="completeSyncBtn" disabled style="background: linear-gradient(135deg, var(--color-success) 0%, var(--color-primary) 100%);">
+        <span class="btn-icon">🎯</span>
+        <span>完整同步（模型+价格）</span>
+      </button>
+
       <button class="btn btn-primary" id="quickUpdateBtn" disabled style="background: var(--color-success);">
         <span class="btn-icon">⚡</span>
-        <span>快速更新(分析+同步)</span>
+        <span>快速更新（仅价格）</span>
       </button>
-
-      <button class="btn btn-primary" id="analyzeBtn">
-        <span class="btn-icon">🔍</span>
-        <span>开始分析上游价格</span>
-      </button>
-
-      <button class="btn btn-primary" id="syncBtn" disabled>
-        <span class="btn-icon">🚀</span>
-        <span>一键同步到后台</span>
-      </button>
-
     </div>
 
     <!-- Status Message -->
     <div id="status" class="status-card"></div>
+    
+    <!-- Progress Bar -->
+    <div id="progressBar" class="progress-bar-container" style="display: none;">
+      <div class="progress-bar-fill"></div>
+      <div class="progress-bar-text">0%</div>
+    </div>
 
     <!-- Results Card -->
     <div id="resultsSection" class="results-card">
