@@ -4,7 +4,7 @@
 
 [![GitHub](https://img.shields.io/badge/GitHub-sycg767%2FPriceSyncPro-blue?logo=github)](https://github.com/sycg767/PriceSyncPro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.2.0-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.1-orange.svg)](https://github.com/sycg767/PriceSyncPro/releases)
 
 ---
 

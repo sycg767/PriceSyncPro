@@ -1217,6 +1217,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             console.log('📦 /pricing 返回数据:', pricingData);
             
+            // 🔧 OneHub格式检测和转换
+            if (pricingData.success && pricingData.data && typeof pricingData.data === 'object' && !Array.isArray(pricingData.data)) {
+              console.log('🔄 检测到OneHub对象格式，开始转换...');
+              const converted = convertOneHubFormat(pricingData);
+              if (Array.isArray(converted)) {
+                pricingData.data = converted;
+                console.log(`✅ OneHub格式转换成功: ${converted.length} 个模型`);
+              } else {
+                throw new Error('/pricing 接口返回OneHub格式但转换失败');
+              }
+            }
+            
             if (!pricingData.success || !pricingData.data || !Array.isArray(pricingData.data)) {
               throw new Error('/pricing 接口数据格式错误');
             }
@@ -1229,7 +1241,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               filteredData = pricingData.data.filter(item => {
                 // enable_groups 可能是字符串或数组
                 const groups = item.enable_groups;
-                if (!groups) return false;
+                if (!groups) {
+                  // OneHub转换后的数据没有enable_groups，默认包含
+                  console.log(`  ⚠️ 模型 ${item.model_name} 无令牌组信息，默认包含`);
+                  return true;
+                }
                 
                 if (typeof groups === 'string') {
                   return groups === tokenGroup;
