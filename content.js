@@ -1363,6 +1363,144 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             : undefined
         });
       }
+      else if (request.action === 'createChannel') {
+        // 创建渠道
+        const { channelData } = request;
+        
+        console.log('🔧 开始创建渠道:', channelData);
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'Content-Type': 'application/json',
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        // 发送创建请求
+        const response = await fetch(`${apiUrl}/api/channel/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            mode: 'single',
+            channel: channelData
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ 创建渠道失败:', errorText);
+          throw new Error(`创建渠道失败 (HTTP ${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ 渠道创建结果:', result);
+        
+        if (!result.success) {
+          throw new Error(`创建渠道失败: ${result.message || '未知错误'}`);
+        }
+        
+        sendResponse({
+          success: true,
+          data: result.data
+        });
+      }
+      else if (request.action === 'createVendor') {
+        // 创建供货商
+        const { vendorData } = request;
+        
+        console.log('🏭 开始创建供货商:', vendorData);
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'Content-Type': 'application/json',
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        // 发送创建请求
+        const response = await fetch(`${apiUrl}/api/vendors/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include',
+          body: JSON.stringify(vendorData)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ 创建供货商失败:', errorText);
+          throw new Error(`创建供货商失败 (HTTP ${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ 供货商创建结果:', result);
+        
+        if (!result.success) {
+          throw new Error(`创建供货商失败: ${result.message || '未知错误'}`);
+        }
+        
+        sendResponse({
+          success: true,
+          data: result.data
+        });
+      }
+      else if (request.action === 'createModel') {
+        // 创建模型配置
+        const { modelData } = request;
+        
+        console.log('📦 开始创建模型配置:', modelData);
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'Content-Type': 'application/json',
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        // 发送创建请求
+        const response = await fetch(`${apiUrl}/api/models/`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include',
+          body: JSON.stringify(modelData)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ 创建模型配置失败:', errorText);
+          throw new Error(`创建模型配置失败 (HTTP ${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ 模型配置创建结果:', result);
+        
+        if (!result.success) {
+          throw new Error(`创建模型配置失败: ${result.message || '未知错误'}`);
+        }
+        
+        sendResponse({
+          success: true,
+          data: result.data
+        });
+      }
       else if (request.action === 'generateSQL') {
         // 生成 SQL
         const { results, prefix } = request;

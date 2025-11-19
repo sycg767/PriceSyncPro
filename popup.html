@@ -250,42 +250,71 @@
       background-repeat: no-repeat;
       background-position: right 14px center;
       padding-right: 40px;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    select.input-field:hover {
+      border-color: rgba(0, 122, 255, 0.3);
+      box-shadow: 0 2px 12px rgba(0, 122, 255, 0.08);
+      transform: translateY(-1px);
     }
 
     select.input-field:focus {
-      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23007AFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 6.5L6 1.5L11 6.5' stroke='%23007AFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      transform: translateY(0);
     }
 
     /* 下拉框选项样式优化 */
     select.input-field option {
-      padding: 10px 14px;
+      padding: 12px 16px;
       background: white;
       color: var(--color-text-primary);
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
+      font-weight: 500;
+      border-bottom: 1px solid var(--color-separator);
     }
 
     select.input-field option:first-child {
       color: var(--color-text-secondary);
-      font-style: italic;
+      font-style: normal;
+      font-weight: 400;
+      background: var(--color-bg);
+      padding-top: 14px;
+      padding-bottom: 14px;
     }
 
     select.input-field option:not(:first-child) {
       font-weight: 500;
     }
+    
+    select.input-field option:last-child {
+      border-bottom: none;
+    }
 
     /* 选中状态（部分浏览器支持） */
     select.input-field option:checked {
       background: linear-gradient(90deg,
-        rgba(0, 122, 255, 0.12) 0%,
+        rgba(0, 122, 255, 0.15) 0%,
         rgba(0, 122, 255, 0.08) 100%);
       color: var(--color-primary);
       font-weight: 600;
+      border-left: 3px solid var(--color-primary);
+      padding-left: 13px;
     }
 
     /* Hover 状态（部分浏览器支持） */
     select.input-field option:hover {
-      background: rgba(0, 122, 255, 0.05);
+      background: rgba(0, 122, 255, 0.06);
+      color: var(--color-primary);
+    }
+    
+    /* 禁用状态的选项 */
+    select.input-field option:disabled {
+      color: var(--color-text-secondary);
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .input-hint {
@@ -1061,6 +1090,95 @@
       color: var(--color-text-primary);
       line-height: 28px;
     }
+    
+    /* 前缀建议按钮样式 */
+    #prefixSuggestionButtons button:hover {
+      background: rgba(0, 122, 255, 0.1) !important;
+      transform: translateY(-1px);
+    }
+    
+    #prefixSuggestionButtons button:active {
+      transform: translateY(0);
+    }
+    
+    /* ========================================
+       模式切换器 (iOS Segmented Control)
+       ======================================== */
+    .mode-switcher {
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    
+    .mode-btn {
+      flex: 1;
+      height: 36px;
+      border: none;
+      border-radius: calc(var(--radius-md) - 2px);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      background: transparent;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .mode-btn:active {
+      transform: scale(0.96);
+    }
+    
+    .mode-btn.active {
+      background: var(--color-card);
+      color: var(--color-primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* 模式内容区域 */
+    .mode-content {
+      display: none;
+    }
+    
+    .mode-content.active {
+      display: block;
+      animation: fadeInUp 0.4s ease;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* 字段分组标题 */
+    .field-group-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .field-group-divider {
+      height: 1px;
+      background: var(--color-separator);
+      margin: 16px 0;
+    }
   </style>
 </head>
 <body>
@@ -1175,7 +1293,19 @@
 
     <!-- Input Card -->
     <div class="input-card">
-      <!-- 配置预设选择器 -->
+      <!-- 模式切换器 -->
+      <div class="mode-switcher">
+        <button class="mode-btn active" id="quickSyncModeBtn">
+          <span>⚡</span>
+          <span>快速同步</span>
+        </button>
+        <button class="mode-btn" id="autoConfigModeBtn">
+          <span>🚀</span>
+          <span>自动配置</span>
+        </button>
+      </div>
+
+      <!-- 配置预设（两种模式共享） -->
       <div class="input-group">
         <label class="input-label">
           配置预设
@@ -1183,76 +1313,175 @@
         </label>
         <div class="input-wrapper">
           <select id="presetSelect" class="input-field">
-            <option value="">-- 手动输入或选择预设 --</option>
+            <option value="">选择配置预设...</option>
           </select>
         </div>
       </div>
 
-      <div class="input-group">
-        <label class="input-label">上游定价 URL</label>
-        <div class="input-wrapper">
-          <input
-            type="text"
-            id="upstreamUrl"
-            class="input-field"
-            placeholder="https://api.example.com/api/pricing"
-            title="💡 New API：/api/pricing | One Hub：/api/available_model"
-          >
+      <!-- 快速同步模式内容 -->
+      <div id="quickSyncMode" class="mode-content active">
+        <div class="field-group-title">
+          <span>⚡</span>
+          <span>基础配置</span>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">上游定价 URL</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="upstreamUrl"
+              class="input-field"
+              placeholder="https://api.example.com/api/pricing"
+              title="💡 New API：/api/pricing | One Hub：/api/available_model"
+            >
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">模型前缀（可选）</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="modelPrefix"
+              class="input-field"
+              placeholder="例如：Ely/ 或 233/"
+              title="💡 填写完整前缀，例如：Ely/ 或 233/（需要包含末尾的 /）"
+            >
+          </div>
+          <div id="prefixSuggestions" style="display: none; margin-top: 6px; font-size: 12px;">
+            <span style="color: var(--color-text-secondary);">💡 建议前缀：</span>
+            <div id="prefixSuggestionButtons" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+          </div>
+        </div>
+
+        <div class="field-group-divider"></div>
+
+        <div class="field-group-title">
+          <span>🎯</span>
+          <span>目标渠道</span>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">
+            选择渠道（用于同步模型列表）
+            <button id="refreshChannelsBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="刷新渠道列表">🔄</button>
+          </label>
+          <div class="input-wrapper">
+            <select id="channelSelect" class="input-field">
+              <option value="">-- 加载中... --</option>
+            </select>
+          </div>
+          <div class="input-hint" id="channelHint" style="margin-top: 6px;">
+            💡 选择已存在的渠道进行价格同步
+          </div>
+        </div>
+
+        <!-- 高级选项 -->
+        <div class="input-group" style="margin-top: 16px;">
+          <button id="advancedToggle" class="input-label" style="background: none; border: none; cursor: pointer; width: 100%; text-align: left; padding: 0; display: flex; align-items: center; justify-content: space-between;">
+            <span>⚙️ 高级选项</span>
+            <span id="advancedToggleIcon" style="font-size: 14px; transition: transform 0.3s ease;">▼</span>
+          </button>
+          <div id="advancedOptions" style="display: none; margin-top: 8px;">
+            <label class="input-label" style="font-size: 12px; margin-bottom: 6px;">令牌分组（可选）</label>
+            <div class="input-wrapper">
+              <select id="tokenGroupSelect" class="input-field" title="💡 仅在使用 /pricing 接口时生效，用于筛选特定令牌组的模型">
+                <option value="">-- 获取所有模型 --</option>
+                <option value="default">default</option>
+                <option value="vip">vip</option>
+                <option value="svip">svip</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="input-group">
-        <label class="input-label">模型前缀（可选）</label>
-        <div class="input-wrapper">
-          <input
-            type="text"
-            id="modelPrefix"
-            class="input-field"
-            placeholder="例如：Zen/"
-            title="💡 填写完整前缀，例如：Zen/ 或 OpenAI/（需要包含末尾的 /）"
-          >
+      <!-- 自动配置模式内容 -->
+      <div id="autoConfigMode" class="mode-content">
+        <div class="field-group-title">
+          <span>🚀</span>
+          <span>一键自动配置</span>
         </div>
-      </div>
 
-      <div class="input-group">
-        <label class="input-label">令牌分组（可选）</label>
-        <div class="input-wrapper">
-          <select id="tokenGroupSelect" class="input-field" title="💡 仅在使用 /pricing 接口时生效，用于筛选特定令牌组的模型">
-            <option value="">-- 获取所有模型 --</option>
-            <option value="default">default</option>
-            <option value="vip">vip</option>
-            <option value="svip">svip</option>
-          </select>
+        <div style="background: rgba(0, 122, 255, 0.08); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px; font-size: 13px; line-height: 1.5; color: var(--color-primary);">
+          <strong>💡 提示：</strong>此模式将自动创建渠道、供货商和模型配置，无需手动操作后台
         </div>
-      </div>
 
-      <div class="input-group">
-        <label class="input-label">
-          选择渠道（用于同步模型列表）
-          <button id="refreshChannelsBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="刷新渠道列表">🔄</button>
-        </label>
-        <div class="input-wrapper">
-          <select id="channelSelect" class="input-field">
-            <option value="">-- 加载中... --</option>
-          </select>
+        <div class="input-group">
+          <label class="input-label">上游定价 URL</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="upstreamUrlAuto"
+              class="input-field"
+              placeholder="https://api.example.com/api/pricing"
+              title="💡 New API：/api/pricing | One Hub：/api/available_model"
+            >
+          </div>
         </div>
-        <div class="input-hint" id="channelHint" style="margin-top: 6px;">
-          💡 选择要同步模型列表的渠道
+
+        <div class="input-group">
+          <label class="input-label">模型前缀</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="modelPrefixAuto"
+              class="input-field"
+              placeholder="例如：Ely/ 或 233/"
+              title="💡 填写完整前缀，例如：Ely/ 或 233/（需要包含末尾的 /）"
+            >
+          </div>
+          <div class="input-hint">💡 用于创建供货商和模型配置</div>
+        </div>
+
+        <div class="field-group-divider"></div>
+
+        <div class="field-group-title">
+          <span>🔑</span>
+          <span>渠道凭证</span>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">
+            API 密钥（必填）
+            <span style="float: right; font-size: 11px; color: var(--color-text-secondary); font-weight: 400;">🔒 仅本地存储</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              type="password"
+              id="apiKeyInput"
+              class="input-field"
+              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+              title="💡 用于自动创建渠道的 API 密钥"
+            >
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">渠道标签（可选）</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="channelTagInput"
+              class="input-field"
+              placeholder="默认：公益"
+              title="💡 用于标记渠道，方便分类管理"
+            >
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Buttons -->
     <div class="btn-group">
-      <button class="btn btn-primary" id="completeSyncBtn" disabled style="background: linear-gradient(135deg, var(--color-success) 0%, var(--color-primary) 100%);">
-        <span class="btn-icon">🎯</span>
-        <span>完整同步（模型+价格）</span>
+      <button class="btn btn-primary" id="smartSyncBtn" disabled style="background: linear-gradient(135deg, var(--color-success) 0%, var(--color-primary) 100%);">
+        <span class="btn-icon">🚀</span>
+        <span id="smartSyncBtnText">智能同步</span>
       </button>
-
-      <button class="btn btn-primary" id="quickUpdateBtn" disabled style="background: var(--color-success);">
-        <span class="btn-icon">⚡</span>
-        <span>快速更新（仅价格）</span>
-      </button>
+      <div class="input-hint" id="syncModeHint" style="text-align: center; margin-top: -6px; margin-bottom: 12px; display: none;">
+        💡 <span id="syncModeText"></span> | ⌨️ 快捷键: Ctrl+Enter
+      </div>
     </div>
 
     <!-- Status Message -->
@@ -1269,6 +1498,10 @@
       <div class="results-header">
         <h3 class="results-title">计算结果</h3>
         <span class="results-stats" id="resultsStats"></span>
+      </div>
+      <!-- 搜索框 -->
+      <div style="margin-bottom: 12px;">
+        <input type="text" id="tableSearchInput" class="input-field" placeholder="🔍 搜索模型名称..." style="font-size: 14px; padding: 10px 12px;">
       </div>
       <div class="table-wrapper">
         <table>
