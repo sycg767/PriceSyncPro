@@ -1279,7 +1279,8 @@ smartSyncBtn.addEventListener('click', async () => {
       
       // 步骤4: 自动执行完整同步（模型列表 + 价格），跳过确认对话框
       smartSyncBtn.innerHTML = '<span class="spinner"></span>同步模型和价格中...';
-      await performCompleteSyncLogic(true); // skipConfirmation = true
+      // 传递自动配置模式使用的前缀
+      await performCompleteSyncLogic(true, normalizedPrefix);
       
     } catch (error) {
       showStatus(`❌ 自动配置失败：${error.message}`, 'error');
