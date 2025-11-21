@@ -2623,10 +2623,12 @@ function renderResultsTable(results, prefix = '') {
  */
 async function performAutoConfiguration() {
   const upstreamUrl = getFullUpstreamUrlAuto();
-  const prefix = getNormalizedPrefix();
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
-  const channelTag = document.getElementById('channelTagInput').value.trim() || '公益';
-  const channelGroup = tokenGroupSelect.value.trim() || 'default';
+  // 使用自动配置模式的前缀输入框
+  const prefix = modelPrefixAuto?.value.trim() || '';
+  const normalizedPrefix = prefix ? (prefix.endsWith('/') ? prefix : prefix + '/') : '';
+  const apiKey = apiKeyInput?.value.trim() || '';
+  const channelTag = channelTagInput?.value.trim() || '公益';
+  const channelGroup = tokenGroupSelect?.value.trim() || 'default';
   
   if (!upstreamUrl) {
     showStatus('⚠️ 请先输入上游定价 URL', 'error');
@@ -2638,9 +2640,9 @@ async function performAutoConfiguration() {
     return { success: false, error: '缺少 API 密钥' };
   }
   
-  if (!prefix) {
-    showStatus('⚠️ 请先输入模型前缀', 'error');
-    return { success: false, error: '缺少模型前缀' };
+  if (!normalizedPrefix) {
+    showStatus('⚠️ 请先输入渠道前缀', 'error');
+    return { success: false, error: '缺少渠道前缀' };
   }
   
   try {
@@ -2663,7 +2665,7 @@ async function performAutoConfiguration() {
     }
     
     // 步骤2: 生成渠道名称（使用前缀去掉末尾斜杠）
-    const channelName = prefix.replace(/\/$/, '');
+    const channelName = normalizedPrefix.replace(/\/$/, '');
     
     // 步骤3: 创建渠道数据
     const channelData = {
@@ -2711,7 +2713,7 @@ async function performAutoConfiguration() {
     showStatus('🚀 步骤 2/3: 正在创建供货商...', 'info');
     showProgress(50, '创建供货商中...');
     
-    const vendorIcon = prefix.replace(/\/$/, ''); // 去掉末尾斜杠
+    const vendorIcon = normalizedPrefix.replace(/\/$/, '');
     // ✅ 修复：NewAPI 期望的字段名是 name 和 icon，而不是 vendor_name 和 vendor_icon
     const vendorData = {
       name: channelName,
@@ -2762,9 +2764,9 @@ async function performAutoConfiguration() {
     
     // ✅ 修复：NewAPI 期望的字段名是 model_name，而不是 name
     // 添加 icon 字段（使用去掉斜杠的前缀）
-    const modelIcon = prefix.replace(/\/$/, ''); // 去掉末尾斜杠
+    const modelIcon = normalizedPrefix.replace(/\/$/, '');
     const modelConfigData = {
-      model_name: prefix, // 前缀作为模型名称
+      model_name: normalizedPrefix,
       name_rule: 1, // 前缀匹配
       vendor_id: vendorId,
       icon: modelIcon, // 模型图标（例如：yb）
@@ -2803,7 +2805,7 @@ async function performAutoConfiguration() {
       `🎉 自动配置完成！\n\n` +
       `✅ 渠道：${channelName}\n` +
       `✅ 供货商：${channelName}\n` +
-      `✅ 模型前缀：${prefix}\n` +
+      `✅ 模型前缀：${normalizedPrefix}\n` +
       `✅ 标签：${channelTag}\n\n` +
       `💡 现在可以使用"智能同步"功能同步价格了`,
       'success'
