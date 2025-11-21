@@ -42,7 +42,7 @@ document.addEventListener('keydown', (e) => {
   // Ctrl+S 或 Cmd+S：保存预设
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault();
-    if (upstreamUrlInput.value.trim()) {
+    if (getFullUpstreamUrl()) {
       savePresetBtn.click();
     }
   }
@@ -58,9 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // DOM 元素
 const smartSyncBtn = document.getElementById('smartSyncBtn');
 const smartSyncBtnText = document.getElementById('smartSyncBtnText');
+const batchUpdateBtn = document.getElementById('batchUpdateBtn');
 const syncModeHint = document.getElementById('syncModeHint');
 const syncModeText = document.getElementById('syncModeText');
-const upstreamUrlInput = document.getElementById('upstreamUrl');
+
+// 快速同步模式的URL相关元素
+const upstreamBaseUrlInput = document.getElementById('upstreamBaseUrl');
+const apiPathSelect = document.getElementById('apiPathSelect');
+const apiPathCustomInput = document.getElementById('apiPathCustom');
 const modelPrefixInput = document.getElementById('modelPrefix');
 const tokenGroupSelect = document.getElementById('tokenGroupSelect');
 const channelSelect = document.getElementById('channelSelect');
@@ -70,13 +75,189 @@ const quickSyncModeBtn = document.getElementById('quickSyncModeBtn');
 const autoConfigModeBtn = document.getElementById('autoConfigModeBtn');
 const quickSyncMode = document.getElementById('quickSyncMode');
 const autoConfigMode = document.getElementById('autoConfigMode');
-const upstreamUrlAuto = document.getElementById('upstreamUrlAuto');
+
+// 自动配置模式的URL相关元素
+const upstreamBaseUrlAutoInput = document.getElementById('upstreamBaseUrlAuto');
+const apiPathSelectAuto = document.getElementById('apiPathSelectAuto');
+const apiPathCustomAutoInput = document.getElementById('apiPathCustomAuto');
 const modelPrefixAuto = document.getElementById('modelPrefixAuto');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const channelTagInput = document.getElementById('channelTagInput');
 
+// 向后兼容：创建虚拟的 upstreamUrlInput 对象
+const upstreamUrlInput = {
+  get value() {
+    return getFullUpstreamUrl();
+  },
+  set value(val) {
+    setFullUpstreamUrl(val);
+  },
+  addEventListener: function(event, handler) {
+    if (upstreamBaseUrlInput) upstreamBaseUrlInput.addEventListener(event, handler);
+    if (apiPathSelect) apiPathSelect.addEventListener(event, handler);
+  },
+  parentElement: upstreamBaseUrlInput?.parentElement,
+  focus: function() {
+    if (upstreamBaseUrlInput) upstreamBaseUrlInput.focus();
+  },
+  style: upstreamBaseUrlInput?.style || {}
+};
+
+const upstreamUrlAuto = {
+  get value() {
+    return getFullUpstreamUrlAuto();
+  },
+  set value(val) {
+    setFullUpstreamUrlAuto(val);
+  },
+  addEventListener: function(event, handler) {
+    if (upstreamBaseUrlAutoInput) upstreamBaseUrlAutoInput.addEventListener(event, handler);
+    if (apiPathSelectAuto) apiPathSelectAuto.addEventListener(event, handler);
+  }
+};
+
 // 当前模式状态
 let currentMode = 'quick'; // 'quick' 或 'auto'
+
+// ========================================
+// URL和前缀处理辅助函数
+// ========================================
+
+/**
+ * 获取完整的上游URL（快速同步模式）
+ * @returns {string} 完整的URL
+ */
+function getFullUpstreamUrl() {
+  if (!upstreamBaseUrlInput) return '';
+  
+  const baseUrl = upstreamBaseUrlInput.value.trim();
+  if (!baseUrl) return '';
+  
+  const apiPath = apiPathSelect?.value || 'api/pricing';
+  
+  // 如果选择了自定义路径
+  if (apiPath === 'custom') {
+    const customPath = apiPathCustomInput?.value.trim() || '';
+    if (!customPath) return baseUrl;
+    // 确保路径不以 / 开头（会自动添加）
+    const cleanPath = customPath.replace(/^\/+/, '');
+    return `${baseUrl}/${cleanPath}`;
+  }
+  
+  // 使用预设路径
+  return `${baseUrl}/${apiPath}`;
+}
+
+/**
+ * 设置完整的上游URL（快速同步模式）
+ * @param {string} fullUrl - 完整的URL
+ */
+function setFullUpstreamUrl(fullUrl) {
+  if (!upstreamBaseUrlInput || !fullUrl) return;
+  
+  try {
+    const urlObj = new URL(fullUrl);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+    const path = urlObj.pathname.replace(/^\//, ''); // 去掉开头的 /
+    
+    upstreamBaseUrlInput.value = baseUrl;
+    
+    // 尝试匹配预设路径
+    if (path === 'api/pricing') {
+      apiPathSelect.value = 'api/pricing';
+      if (apiPathCustomInput) apiPathCustomInput.style.display = 'none';
+    } else if (path === 'api/available_model') {
+      apiPathSelect.value = 'api/available_model';
+      if (apiPathCustomInput) apiPathCustomInput.style.display = 'none';
+    } else if (path) {
+      // 自定义路径
+      apiPathSelect.value = 'custom';
+      if (apiPathCustomInput) {
+        apiPathCustomInput.value = path;
+        apiPathCustomInput.style.display = 'block';
+      }
+    }
+  } catch (e) {
+    // 如果不是有效的URL，直接设置到基础URL
+    upstreamBaseUrlInput.value = fullUrl;
+  }
+}
+
+/**
+ * 获取完整的上游URL（自动配置模式）
+ * @returns {string} 完整的URL
+ */
+function getFullUpstreamUrlAuto() {
+  if (!upstreamBaseUrlAutoInput) return '';
+  
+  const baseUrl = upstreamBaseUrlAutoInput.value.trim();
+  if (!baseUrl) return '';
+  
+  const apiPath = apiPathSelectAuto?.value || 'api/pricing';
+  
+  // 如果选择了自定义路径
+  if (apiPath === 'custom') {
+    const customPath = apiPathCustomAutoInput?.value.trim() || '';
+    if (!customPath) return baseUrl;
+    const cleanPath = customPath.replace(/^\/+/, '');
+    return `${baseUrl}/${cleanPath}`;
+  }
+  
+  return `${baseUrl}/${apiPath}`;
+}
+
+/**
+ * 设置完整的上游URL（自动配置模式）
+ * @param {string} fullUrl - 完整的URL
+ */
+function setFullUpstreamUrlAuto(fullUrl) {
+  if (!upstreamBaseUrlAutoInput || !fullUrl) return;
+  
+  try {
+    const urlObj = new URL(fullUrl);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+    const path = urlObj.pathname.replace(/^\//, '');
+    
+    upstreamBaseUrlAutoInput.value = baseUrl;
+    
+    if (path === 'api/pricing') {
+      apiPathSelectAuto.value = 'api/pricing';
+      if (apiPathCustomAutoInput) apiPathCustomAutoInput.style.display = 'none';
+    } else if (path === 'api/available_model') {
+      apiPathSelectAuto.value = 'api/available_model';
+      if (apiPathCustomAutoInput) apiPathCustomAutoInput.style.display = 'none';
+    } else if (path) {
+      apiPathSelectAuto.value = 'custom';
+      if (apiPathCustomAutoInput) {
+        apiPathCustomAutoInput.value = path;
+        apiPathCustomAutoInput.style.display = 'block';
+      }
+    }
+  } catch (e) {
+    upstreamBaseUrlAutoInput.value = fullUrl;
+  }
+}
+
+/**
+ * 获取规范化的渠道前缀（自动添加末尾的 /）
+ * @returns {string} 带有末尾斜杠的前缀
+ */
+function getNormalizedPrefix() {
+  const prefix = modelPrefixInput?.value.trim() || '';
+  if (!prefix) return '';
+  // 如果用户输入的前缀末尾没有 /，自动添加
+  return prefix.endsWith('/') ? prefix : prefix + '/';
+}
+
+/**
+ * 设置渠道前缀（自动去掉末尾的 /）
+ * @param {string} prefix - 前缀
+ */
+function setPrefix(prefix) {
+  if (!modelPrefixInput) return;
+  // 显示时去掉末尾的 /，让UI更友好
+  modelPrefixInput.value = prefix.replace(/\/+$/, '');
+}
 
 // ========================================
 // 模式切换逻辑
@@ -105,7 +286,7 @@ function switchMode(mode) {
   }
   
   // 重新验证输入
-  validateInputs();
+  updateSmartSyncButton();
 }
 
 // 模式切换按钮事件监听
@@ -150,18 +331,7 @@ if (channelTagInput) {
   });
 }
 
-// 快速模式字段同步到自动配置模式
-upstreamUrlInput.addEventListener('input', () => {
-  if (upstreamUrlAuto) {
-    upstreamUrlAuto.value = upstreamUrlInput.value;
-  }
-});
-
-modelPrefixInput.addEventListener('input', () => {
-  if (modelPrefixAuto) {
-    modelPrefixAuto.value = modelPrefixInput.value;
-  }
-});
+// 快速模式字段同步到自动配置模式（这部分已经在上面的事件监听中处理）
 const refreshChannelsBtn = document.getElementById('refreshChannelsBtn');
 const channelHint = document.getElementById('channelHint');
 const presetSelect = document.getElementById('presetSelect');
@@ -704,8 +874,8 @@ presetSelect.addEventListener('change', () => {
   const preset = presets[index];
   
   if (preset) {
-    upstreamUrlInput.value = preset.url;
-    modelPrefixInput.value = preset.prefix || '';
+    setFullUpstreamUrl(preset.url);
+    setPrefix(preset.prefix || '');
     
     // 恢复渠道 ID（如果有）
     if (preset.channelId) {
@@ -728,13 +898,7 @@ upstreamUrlInput.addEventListener('input', () => {
     autoMatchChannelFromUrl();
   }, 500);
 });
-modelPrefixInput.addEventListener('input', () => {
-  updateSmartSyncButton();
-  clearTimeout(window._prefixMatchTimeout);
-  window._prefixMatchTimeout = setTimeout(() => {
-    autoMatchChannelFromPrefix();
-  }, 500);
-});
+// modelPrefixInput 的事件监听已在上面处理
 
 // 高级选项折叠功能
 if (advancedToggle) {
@@ -771,8 +935,8 @@ if (tableSearchInput) {
 
 // 保存新预设
 savePresetBtn.addEventListener('click', async () => {
-  const url = upstreamUrlInput.value.trim();
-  const prefix = modelPrefixInput.value.trim();
+  const url = getFullUpstreamUrl();
+  const prefix = getNormalizedPrefix();
   
   if (!url) {
     showStatus('⚠️ 请先输入上游定价 URL', 'error');
@@ -1051,7 +1215,7 @@ async function editPreset(index) {
 
 // 更新智能同步按钮状态
 function updateSmartSyncButton() {
-  const url = upstreamUrlInput.value.trim();
+  const url = getFullUpstreamUrl();
   const channelId = channelSelect.value.trim();
   
   if (!url) {
@@ -1139,10 +1303,189 @@ smartSyncBtn.addEventListener('click', async () => {
   }
 });
 
+// ========================================
+// 批量更新所有渠道按钮
+// ========================================
+if (batchUpdateBtn) {
+  batchUpdateBtn.addEventListener('click', async () => {
+    await performBatchUpdateAllChannels();
+  });
+}
+
+/**
+ * 批量更新所有渠道的价格配置
+ * 遍历所有渠道，使用其base_url自动更新价格
+ */
+async function performBatchUpdateAllChannels() {
+  // 确认操作
+  const confirmed = await showConfirmDialog({
+    title: '🔄 批量更新所有渠道',
+    message: '将自动获取所有渠道的URL并更新其价格配置\n\n这可能需要一些时间，确定继续吗？',
+    info: [
+      { label: '渠道数量', value: `${channelsList.length} 个` },
+      { label: '预计耗时', value: `约 ${Math.ceil(channelsList.length * 2)} 秒` }
+    ],
+    confirmText: '开始批量更新',
+    cancelText: '取消'
+  });
+  
+  if (!confirmed) {
+    return;
+  }
+  
+  // 禁用按钮
+  batchUpdateBtn.disabled = true;
+  const originalHTML = batchUpdateBtn.innerHTML;
+  batchUpdateBtn.innerHTML = '<span class="spinner"></span>批量更新中...';
+  
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // 确保 content script 已加载
+    const scriptReady = await ensureContentScript(tab.id);
+    if (!scriptReady) {
+      showStatus('❌ 无法连接到页面脚本，请刷新页面后重试', 'error');
+      return;
+    }
+    
+    // 如果渠道列表为空，先加载
+    if (channelsList.length === 0) {
+      showStatus('📋 正在加载渠道列表...', 'info');
+      await loadChannelList();
+      
+      if (channelsList.length === 0) {
+        showStatus('⚠️ 没有找到可用的渠道', 'error');
+        return;
+      }
+    }
+    
+    showStatus(`🚀 开始批量更新 ${channelsList.length} 个渠道...`, 'info');
+    showProgress(0, '准备中...');
+    
+    let successCount = 0;
+    let failedCount = 0;
+    const failedChannels = [];
+    
+    // 遍历所有渠道
+    for (let i = 0; i < channelsList.length; i++) {
+      const channel = channelsList[i];
+      const progress = Math.round(((i + 1) / channelsList.length) * 100);
+      
+      showProgress(progress, `处理 ${i + 1}/${channelsList.length}: ${channel.name}`);
+      showStatus(`🔄 [${i + 1}/${channelsList.length}] 正在更新渠道: ${channel.name}`, 'info');
+      
+      try {
+        if (!channel.baseUrl) {
+          console.warn(`渠道 ${channel.name} 没有 base_url，跳过`);
+          failedCount++;
+          failedChannels.push({ name: channel.name, reason: '缺少 base_url' });
+          continue;
+        }
+        
+        // 提取渠道前缀
+        const prefix = channel.name.endsWith('/') ? channel.name : channel.name + '/';
+        
+        // 智能尝试两种API路径
+        const apiPaths = [
+          { path: '/api/pricing', name: 'New API' },
+          { path: '/api/available_model', name: 'One Hub' }
+        ];
+        let analyzeResult = null;
+        let usedPath = null;
+        const attemptErrors = [];
+        
+        for (const apiConfig of apiPaths) {
+          const upstreamUrl = `${channel.baseUrl}${apiConfig.path}`;
+          
+          const result = await sendMessageWithRetry(tab.id, {
+            action: 'analyzePricing',
+            upstreamUrl: upstreamUrl
+          });
+          
+          if (result.success && result.response.success) {
+            analyzeResult = result;
+            usedPath = apiConfig.path;
+            break;
+          } else {
+            // 记录失败原因
+            const error = result.error || result.response?.error || '未知错误';
+            attemptErrors.push(`${apiConfig.name}(${apiConfig.path}): ${error}`);
+          }
+        }
+        
+        if (!analyzeResult) {
+          failedCount++;
+          const detailedReason = attemptErrors.join(' | ');
+          failedChannels.push({ name: channel.name, reason: detailedReason });
+          continue;
+        }
+        
+        const results = analyzeResult.response.results;
+        const apiUrl = analyzeResult.response.apiUrl;
+        
+        // 步骤2: 同步到后台
+        const syncResult = await sendMessageWithRetry(tab.id, {
+          action: 'syncToBackend',
+          results: results,
+          apiUrl: apiUrl,
+          prefix: prefix
+        });
+        
+        if (!syncResult.success || !syncResult.response.success) {
+          const error = syncResult.error || syncResult.response?.error || '未知错误';
+          console.error(`渠道 ${channel.name} 同步失败:`, error);
+          failedCount++;
+          failedChannels.push({ name: channel.name, reason: error });
+          continue;
+        }
+        
+        successCount++;
+        console.log(`✅ 渠道 ${channel.name} 更新成功`);
+        
+        // 稍微延迟，避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+      } catch (error) {
+        console.error(`处理渠道 ${channel.name} 时出错:`, error);
+        failedCount++;
+        failedChannels.push({ name: channel.name, reason: error.message });
+      }
+    }
+    
+    // 显示最终结果
+    showProgress(100, '✅ 批量更新完成');
+    
+    let resultMsg = `🎉 批量更新完成！\n\n`;
+    resultMsg += `✅ 成功: ${successCount} 个渠道\n`;
+    
+    if (failedCount > 0) {
+      resultMsg += `❌ 失败: ${failedCount} 个渠道\n\n`;
+      resultMsg += `失败的渠道：\n`;
+      failedChannels.forEach(ch => {
+        resultMsg += `• ${ch.name}: ${ch.reason}\n`;
+      });
+    }
+    
+    showStatus(resultMsg, successCount > 0 ? 'success' : 'error');
+    
+    setTimeout(() => {
+      hideProgress();
+    }, 3000);
+    
+  } catch (error) {
+    showStatus(`❌ 批量更新失败：${error.message}`, 'error');
+    hideProgress();
+  } finally {
+    // 恢复按钮
+    batchUpdateBtn.disabled = false;
+    batchUpdateBtn.innerHTML = originalHTML;
+  }
+}
+
 // 快速更新逻辑（仅价格）
 async function performQuickUpdateLogic() {
-  const upstreamUrl = upstreamUrlInput.value.trim();
-  const prefix = modelPrefixInput.value.trim();
+  const upstreamUrl = getFullUpstreamUrl();
+  const prefix = getNormalizedPrefix();
   
   if (!upstreamUrl) {
     showStatus('⚠️ 请先输入上游定价 URL', 'error');
@@ -1244,8 +1587,8 @@ async function performQuickUpdateLogic() {
 
 // 完整同步逻辑（模型+价格）
 async function performCompleteSyncLogic(skipConfirmation = false) {
-  const upstreamUrl = upstreamUrlInput.value.trim();
-  const prefix = modelPrefixInput.value.trim();
+  const upstreamUrl = getFullUpstreamUrl();
+  const prefix = getNormalizedPrefix();
   const channelId = channelSelect.value.trim();
   
   if (!upstreamUrl) {
@@ -1426,7 +1769,7 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
 
 // 根据 URL 自动匹配渠道
 async function autoMatchChannelFromUrl() {
-  const upstreamUrl = upstreamUrlInput.value.trim();
+  const upstreamUrl = getFullUpstreamUrl();
   
   if (!upstreamUrl || channelsList.length === 0) return;
   
@@ -1506,7 +1849,7 @@ async function autoMatchChannelFromUrl() {
 
 // 根据前缀自动匹配渠道
 function autoMatchChannelFromPrefix() {
-  const prefix = modelPrefixInput.value.trim();
+  const prefix = modelPrefixInput?.value.trim() || '';
   
   if (!prefix || channelsList.length === 0) return;
   
@@ -1537,23 +1880,46 @@ function autoMatchChannelFromPrefix() {
 }
 
 // 从 storage 加载保存的配置
-chrome.storage.local.get(['upstreamUrl', 'modelPrefix', 'tokenGroup', 'channelId', 'autoConfigUrl', 'autoConfigPrefix', 'autoConfigApiKey', 'autoConfigChannelTag'], (result) => {
-  if (result.upstreamUrl) {
-    upstreamUrlInput.value = result.upstreamUrl;
+chrome.storage.local.get([
+  'upstreamUrl', 'upstreamBaseUrl', 'apiPath',
+  'modelPrefix', 'tokenGroup', 'channelId',
+  'autoConfigBaseUrl', 'autoConfigApiPath',
+  'autoConfigPrefix', 'autoConfigApiKey', 'autoConfigChannelTag'
+], (result) => {
+  // 优先使用新格式（分离的baseUrl和apiPath）
+  if (result.upstreamBaseUrl && upstreamBaseUrlInput) {
+    upstreamBaseUrlInput.value = result.upstreamBaseUrl;
+  } else if (result.upstreamUrl) {
+    // 向后兼容：如果只有旧格式的完整URL，则拆分它
+    setFullUpstreamUrl(result.upstreamUrl);
   }
+  
+  if (result.apiPath && apiPathSelect) {
+    apiPathSelect.value = result.apiPath;
+    if (result.apiPath === 'custom' && apiPathCustomInput) {
+      apiPathCustomInput.style.display = 'block';
+    }
+  }
+  
   if (result.modelPrefix) {
-    modelPrefixInput.value = result.modelPrefix;
+    setPrefix(result.modelPrefix);
   }
   if (result.tokenGroup) {
     tokenGroupSelect.value = result.tokenGroup;
   }
   
   // 恢复自动配置模式的输入
-  if (result.autoConfigUrl && upstreamUrlAuto) {
-    upstreamUrlAuto.value = result.autoConfigUrl;
+  if (result.autoConfigBaseUrl && upstreamBaseUrlAutoInput) {
+    upstreamBaseUrlAutoInput.value = result.autoConfigBaseUrl;
+  }
+  if (result.autoConfigApiPath && apiPathSelectAuto) {
+    apiPathSelectAuto.value = result.autoConfigApiPath;
+    if (result.autoConfigApiPath === 'custom' && apiPathCustomAutoInput) {
+      apiPathCustomAutoInput.style.display = 'block';
+    }
   }
   if (result.autoConfigPrefix && modelPrefixAuto) {
-    modelPrefixAuto.value = result.autoConfigPrefix;
+    modelPrefixAuto.value = result.autoConfigPrefix.replace(/\/+$/, '');
   }
   if (result.autoConfigApiKey && apiKeyInput) {
     apiKeyInput.value = result.autoConfigApiKey;
@@ -2059,11 +2425,19 @@ async function clearAllConfigs() {
 
 // 保存配置
 function saveConfig() {
-  chrome.storage.local.set({
-    upstreamUrl: upstreamUrlInput.value.trim(),
-    modelPrefix: modelPrefixInput.value.trim(),
-    tokenGroup: tokenGroupSelect.value
-  });
+  const config = {
+    upstreamUrl: getFullUpstreamUrl(),
+    upstreamBaseUrl: upstreamBaseUrlInput?.value.trim() || '',
+    apiPath: apiPathSelect?.value || 'api/pricing',
+    modelPrefix: getNormalizedPrefix(),
+    tokenGroup: tokenGroupSelect?.value || ''
+  };
+  
+  if (config.apiPath === 'custom' && apiPathCustomInput) {
+    config.apiPathCustom = apiPathCustomInput.value.trim();
+  }
+  
+  chrome.storage.local.set(config);
 }
 
 // 显示状态消息
@@ -2248,8 +2622,8 @@ function renderResultsTable(results, prefix = '') {
  * @returns {Promise<Object>} 配置结果
  */
 async function performAutoConfiguration() {
-  const upstreamUrl = upstreamUrlInput.value.trim();
-  const prefix = modelPrefixInput.value.trim();
+  const upstreamUrl = getFullUpstreamUrlAuto();
+  const prefix = getNormalizedPrefix();
   const apiKey = document.getElementById('apiKeyInput').value.trim();
   const channelTag = document.getElementById('channelTagInput').value.trim() || '公益';
   const channelGroup = tokenGroupSelect.value.trim() || 'default';

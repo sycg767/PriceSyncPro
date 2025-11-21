@@ -1326,27 +1326,33 @@
         </div>
 
         <div class="input-group">
-          <label class="input-label">上游定价 URL</label>
+          <label class="input-label">上游基础 URL</label>
           <div class="input-wrapper">
-            <input
-              type="text"
-              id="upstreamUrl"
-              class="input-field"
-              placeholder="https://api.example.com/api/pricing"
-              title="💡 New API：/api/pricing | One Hub：/api/available_model"
-            >
+            <input type="text" id="upstreamBaseUrl" class="input-field" placeholder="https://api.example.com">
           </div>
         </div>
 
         <div class="input-group">
-          <label class="input-label">模型前缀（可选）</label>
+          <label class="input-label">API 路径</label>
+          <div class="input-wrapper">
+            <select id="apiPathSelect" class="input-field">
+              <option value="api/pricing">/api/pricing (New API)</option>
+              <option value="api/available_model">/api/available_model (One Hub)</option>
+              <option value="custom">自定义...</option>
+            </select>
+          </div>
+          <input type="text" id="apiPathCustom" class="input-field" style="display: none; margin-top: 8px;" placeholder="输入自定义 API 路径，例如：v1/models">
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">渠道前缀（可选）</label>
           <div class="input-wrapper">
             <input
               type="text"
               id="modelPrefix"
               class="input-field"
-              placeholder="例如：Ely/ 或 233/"
-              title="💡 填写完整前缀，例如：Ely/ 或 233/（需要包含末尾的 /）"
+              placeholder="例如：Ely 或 233"
+              title="💡 自动在末尾添加 /"
             >
           </div>
           <div id="prefixSuggestions" style="display: none; margin-top: 6px; font-size: 12px;">
@@ -1409,27 +1415,33 @@
         </div>
 
         <div class="input-group">
-          <label class="input-label">上游定价 URL</label>
+          <label class="input-label">上游基础 URL</label>
           <div class="input-wrapper">
-            <input
-              type="text"
-              id="upstreamUrlAuto"
-              class="input-field"
-              placeholder="https://api.example.com/api/pricing"
-              title="💡 New API：/api/pricing | One Hub：/api/available_model"
-            >
+            <input type="text" id="upstreamBaseUrlAuto" class="input-field" placeholder="https://api.example.com">
           </div>
         </div>
 
         <div class="input-group">
-          <label class="input-label">模型前缀</label>
+          <label class="input-label">API 路径</label>
+          <div class="input-wrapper">
+            <select id="apiPathSelectAuto" class="input-field">
+              <option value="api/pricing">/api/pricing (New API)</option>
+              <option value="api/available_model">/api/available_model (One Hub)</option>
+              <option value="custom">自定义...</option>
+            </select>
+          </div>
+          <input type="text" id="apiPathCustomAuto" class="input-field" style="display: none; margin-top: 8px;" placeholder="输入自定义 API 路径，例如：v1/models">
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">渠道前缀</label>
           <div class="input-wrapper">
             <input
               type="text"
               id="modelPrefixAuto"
               class="input-field"
-              placeholder="例如：Ely/ 或 233/"
-              title="💡 填写完整前缀，例如：Ely/ 或 233/（需要包含末尾的 /）"
+              placeholder="例如：Ely 或 233"
+              title="💡 自动在末尾添加 /"
             >
           </div>
           <div class="input-hint">💡 用于创建供货商和模型配置</div>
@@ -1478,6 +1490,10 @@
       <button class="btn btn-primary" id="smartSyncBtn" disabled style="background: linear-gradient(135deg, var(--color-success) 0%, var(--color-primary) 100%);">
         <span class="btn-icon">🚀</span>
         <span id="smartSyncBtnText">智能同步</span>
+      </button>
+      <button class="btn btn-secondary" id="batchUpdateBtn" style="margin-top: 10px;">
+        <span class="btn-icon">🔄</span>
+        <span>批量更新所有渠道</span>
       </button>
       <div class="input-hint" id="syncModeHint" style="text-align: center; margin-top: -6px; margin-bottom: 12px; display: none;">
         💡 <span id="syncModeText"></span> | ⌨️ 快捷键: Ctrl+Enter
