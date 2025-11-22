@@ -1305,31 +1305,42 @@
         </button>
       </div>
 
-      <!-- 配置预设（两种模式共享） -->
-      <div class="input-group">
-        <label class="input-label">
-          配置预设
-          <button id="savePresetBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="保存当前配置">💾</button>
-        </label>
-        <div class="input-wrapper">
-          <select id="presetSelect" class="input-field">
-            <option value="">选择配置预设...</option>
-          </select>
-        </div>
-      </div>
 
       <!-- 快速同步模式内容 -->
       <div id="quickSyncMode" class="mode-content active">
         <div class="field-group-title">
-          <span>⚡</span>
-          <span>基础配置</span>
+          <span>🎯</span>
+          <span>选择渠道</span>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">
+            目标渠道（自动填充配置）
+            <button id="refreshChannelsBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="刷新渠道列表">🔄</button>
+          </label>
+          <div class="input-wrapper">
+            <select id="channelSelect" class="input-field">
+              <option value="">-- 加载中... --</option>
+            </select>
+          </div>
+          <div class="input-hint" id="channelHint" style="margin-top: 6px;">
+            💡 选择渠道后自动填充URL和前缀
+          </div>
+        </div>
+
+        <div class="field-group-divider"></div>
+
+        <div class="field-group-title">
+          <span>⚙️</span>
+          <span>同步配置（自动填充）</span>
         </div>
 
         <div class="input-group">
           <label class="input-label">上游基础 URL</label>
           <div class="input-wrapper">
-            <input type="text" id="upstreamBaseUrl" class="input-field" placeholder="https://api.example.com">
+            <input type="text" id="upstreamBaseUrl" class="input-field" placeholder="选择渠道后自动填充" readonly style="background: var(--color-bg); cursor: not-allowed;">
           </div>
+          <div class="input-hint">💡 此字段由选择的渠道自动填充，如需修改请点击输入框启用编辑</div>
         </div>
 
         <div class="input-group">
@@ -1342,45 +1353,23 @@
             </select>
           </div>
           <input type="text" id="apiPathCustom" class="input-field" style="display: none; margin-top: 8px;" placeholder="输入自定义 API 路径，例如：v1/models">
+          <div class="input-hint">💡 根据渠道类型选择对应的API路径</div>
         </div>
 
         <div class="input-group">
-          <label class="input-label">渠道前缀（可选）</label>
+          <label class="input-label">渠道前缀</label>
           <div class="input-wrapper">
             <input
               type="text"
               id="modelPrefix"
               class="input-field"
-              placeholder="例如：Ely 或 233"
+              placeholder="选择渠道后自动填充"
+              readonly
+              style="background: var(--color-bg); cursor: not-allowed;"
               title="💡 自动在末尾添加 /"
             >
           </div>
-          <div id="prefixSuggestions" style="display: none; margin-top: 6px; font-size: 12px;">
-            <span style="color: var(--color-text-secondary);">💡 建议前缀：</span>
-            <div id="prefixSuggestionButtons" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
-          </div>
-        </div>
-
-        <div class="field-group-divider"></div>
-
-        <div class="field-group-title">
-          <span>🎯</span>
-          <span>目标渠道</span>
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">
-            选择渠道（用于同步模型列表）
-            <button id="refreshChannelsBtn" class="icon-btn" style="float: right; margin-top: -4px;" title="刷新渠道列表">🔄</button>
-          </label>
-          <div class="input-wrapper">
-            <select id="channelSelect" class="input-field">
-              <option value="">-- 加载中... --</option>
-            </select>
-          </div>
-          <div class="input-hint" id="channelHint" style="margin-top: 6px;">
-            💡 选择已存在的渠道进行价格同步
-          </div>
+          <div class="input-hint">💡 此字段由选择的渠道自动填充，如需修改请点击输入框启用编辑</div>
         </div>
 
         <!-- 高级选项 -->

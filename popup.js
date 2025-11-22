@@ -3,9 +3,6 @@
 
 let currentResults = null;
 let currentApiUrl = '';
-let presets = [];
-let lastUsedConfig = null;
-let urlPrefixMap = {}; // URL到前缀的映射
 
 // 监听来自content script的进度消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -39,20 +36,6 @@ document.addEventListener('keydown', (e) => {
     }
   }
   
-  // Ctrl+S 或 Cmd+S：保存预设
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    if (getFullUpstreamUrl()) {
-      savePresetBtn.click();
-    }
-  }
-});
-
-// 为保存预设按钮添加快捷键提示
-document.addEventListener('DOMContentLoaded', () => {
-  if (savePresetBtn) {
-    savePresetBtn.title = '保存当前配置为预设\n⌨️ 快捷键: Ctrl+S';
-  }
 });
 
 // DOM 元素
@@ -67,6 +50,17 @@ const upstreamBaseUrlInput = document.getElementById('upstreamBaseUrl');
 const apiPathSelect = document.getElementById('apiPathSelect');
 const apiPathCustomInput = document.getElementById('apiPathCustom');
 const modelPrefixInput = document.getElementById('modelPrefix');
+
+// 自定义API路径输入框显示/隐藏逻辑
+if (apiPathSelect && apiPathCustomInput) {
+  apiPathSelect.addEventListener('change', function() {
+    if (this.value === 'custom') {
+      apiPathCustomInput.style.display = 'block';
+    } else {
+      apiPathCustomInput.style.display = 'none';
+    }
+  });
+}
 const tokenGroupSelect = document.getElementById('tokenGroupSelect');
 const channelSelect = document.getElementById('channelSelect');
 
@@ -81,6 +75,17 @@ const upstreamBaseUrlAutoInput = document.getElementById('upstreamBaseUrlAuto');
 const apiPathSelectAuto = document.getElementById('apiPathSelectAuto');
 const apiPathCustomAutoInput = document.getElementById('apiPathCustomAuto');
 const modelPrefixAuto = document.getElementById('modelPrefixAuto');
+
+// 自动配置模式的自定义API路径输入框显示/隐藏逻辑
+if (apiPathSelectAuto && apiPathCustomAutoInput) {
+  apiPathSelectAuto.addEventListener('change', function() {
+    if (this.value === 'custom') {
+      apiPathCustomAutoInput.style.display = 'block';
+    } else {
+      apiPathCustomAutoInput.style.display = 'none';
+    }
+  });
+}
 const apiKeyInput = document.getElementById('apiKeyInput');
 const channelTagInput = document.getElementById('channelTagInput');
 
@@ -273,7 +278,12 @@ function switchMode(mode) {
     autoConfigMode.classList.remove('active');
     
     // 更新按钮文本
-    smartSyncBtnText.textContent = '智能同步';
+    smartSyncBtnText.textContent = '开始同步';
+    
+    // 显示批量更新按钮
+    if (batchUpdateBtn) {
+      batchUpdateBtn.style.display = '';
+    }
   } else {
     // 切换到自动配置模式
     quickSyncModeBtn.classList.remove('active');
@@ -282,7 +292,24 @@ function switchMode(mode) {
     autoConfigMode.classList.add('active');
     
     // 更新按钮文本
-    smartSyncBtnText.textContent = '一键自动配置';
+    smartSyncBtnText.textContent = '创建并同步';
+    
+    // 隐藏批量更新按钮（自动配置模式不需要）
+    if (batchUpdateBtn) {
+      batchUpdateBtn.style.display = 'none';
+    }
+    
+    // 重置自动配置模式的输入框状态（移除只读限制）
+    if (upstreamBaseUrlAutoInput) {
+      upstreamBaseUrlAutoInput.readOnly = false;
+      upstreamBaseUrlAutoInput.style.background = '';
+      upstreamBaseUrlAutoInput.style.cursor = '';
+    }
+    if (modelPrefixAuto) {
+      modelPrefixAuto.readOnly = false;
+      modelPrefixAuto.style.background = '';
+      modelPrefixAuto.style.cursor = '';
+    }
   }
   
   // 重新验证输入
@@ -334,8 +361,6 @@ if (channelTagInput) {
 // 快速模式字段同步到自动配置模式（这部分已经在上面的事件监听中处理）
 const refreshChannelsBtn = document.getElementById('refreshChannelsBtn');
 const channelHint = document.getElementById('channelHint');
-const presetSelect = document.getElementById('presetSelect');
-const savePresetBtn = document.getElementById('savePresetBtn');
 const advancedToggle = document.getElementById('advancedToggle');
 const advancedToggleIcon = document.getElementById('advancedToggleIcon');
 const advancedOptions = document.getElementById('advancedOptions');
@@ -770,124 +795,6 @@ if (closeBannerBtn) {
   });
 }
 
-// ========================================
-// 配置预设管理
-// ========================================
-
-/**
- * 从 Chrome Storage 加载所有配置预设
- * @returns {Promise<void>}
- */
-async function loadPresets() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['presets', 'lastUsedConfig', 'urlPrefixMap'], (result) => {
-      presets = result.presets || [];
-      lastUsedConfig = result.lastUsedConfig || null;
-      urlPrefixMap = result.urlPrefixMap || {};
-      resolve();
-    });
-  });
-}
-
-/**
- * 保存预设列表到 Chrome Storage
- * @returns {void}
- */
-function savePresets() {
-  chrome.storage.local.set({ presets: presets });
-}
-
-/**
- * 保存最后使用的配置
- * @param {string} url - 上游定价 URL
- * @param {string} prefix - 模型前缀
- * @returns {void}
- */
-function saveLastUsedConfig(url, prefix) {
-  lastUsedConfig = { url, prefix, timestamp: Date.now() };
-  
-  // 保存URL-前缀关联
-  if (url && prefix) {
-    urlPrefixMap[url] = prefix;
-    chrome.storage.local.set({ urlPrefixMap: urlPrefixMap });
-  }
-  
-  chrome.storage.local.set({ lastUsedConfig: lastUsedConfig });
-  updateSmartSyncButton();
-}
-
-/**
- * 渲染预设下拉列表
- * 将所有预设添加到下拉选择框中
- * @returns {void}
- */
-function renderPresetSelect() {
-  // 清空现有选项（保留第一个默认选项）
-  presetSelect.innerHTML = '<option value="">选择配置预设...</option>';
-  
-  // 如果没有预设，添加提示
-  if (presets.length === 0) {
-    const emptyOption = document.createElement('option');
-    emptyOption.disabled = true;
-    emptyOption.textContent = '暂无保存的预设配置';
-    presetSelect.appendChild(emptyOption);
-    return;
-  }
-  
-  // 添加预设选项
-  presets.forEach((preset, index) => {
-    // 提取URL域名
-    let urlDomain = '';
-    try {
-      const urlObj = new URL(preset.url);
-      urlDomain = urlObj.hostname;
-      // 简化域名显示（去掉www和端口）
-      urlDomain = urlDomain.replace(/^www\./, '').split(':')[0];
-    } catch (e) {
-      urlDomain = '';
-    }
-    
-    const option = document.createElement('option');
-    option.value = index;
-    
-    // 优化显示格式：前缀 · 域名
-    const prefixText = preset.prefix || '默认';
-    const displayText = urlDomain
-      ? `${prefixText} · ${urlDomain}`
-      : `${prefixText}`;
-    
-    option.textContent = displayText;
-    option.title = `${preset.name || prefixText}\n${preset.url}`; // 悬停显示完整信息
-    presetSelect.appendChild(option);
-  });
-}
-
-// 预设选择变化
-presetSelect.addEventListener('change', () => {
-  const selectedValue = presetSelect.value;
-  
-  if (selectedValue === '') {
-    return;
-  }
-  
-  const index = parseInt(selectedValue);
-  const preset = presets[index];
-  
-  if (preset) {
-    setFullUpstreamUrl(preset.url);
-    setPrefix(preset.prefix || '');
-    
-    // 恢复渠道 ID（如果有）
-    if (preset.channelId) {
-      channelSelect.value = preset.channelId;
-    }
-    
-    showStatus(`✅ 已加载预设: ${preset.name}`, 'success');
-    
-    // 更新智能同步按钮状态
-    updateSmartSyncButton();
-  }
-});
 
 // 监听输入框变化
 upstreamUrlInput.addEventListener('input', () => {
@@ -916,6 +823,8 @@ if (tableSearchInput) {
     const rows = resultsTableBody.querySelectorAll('tr');
     
     let visibleCount = 0;
+    let totalCount = rows.length;
+    
     rows.forEach(row => {
       const modelName = row.querySelector('.model-name')?.textContent.toLowerCase() || '';
       if (modelName.includes(searchTerm)) {
@@ -929,289 +838,19 @@ if (tableSearchInput) {
     // 更新统计信息
     if (searchTerm) {
       resultsStats.textContent = `找到 ${visibleCount} 个匹配项`;
-    }
-  });
-}
-
-// 保存新预设
-savePresetBtn.addEventListener('click', async () => {
-  const url = getFullUpstreamUrl();
-  const prefix = getNormalizedPrefix();
-  
-  if (!url) {
-    showStatus('⚠️ 请先输入上游定价 URL', 'error');
-    return;
-  }
-  
-  // 检查是否已存在相同配置
-  const existingIndex = presets.findIndex(p => p.url === url && p.prefix === prefix);
-  
-  if (existingIndex !== -1) {
-    showStatus('ℹ️ 该配置已存在于预设中', 'info');
-    presetSelect.value = existingIndex;
-    return;
-  }
-  
-  // 使用自定义输入对话框询问预设名称
-  const name = await showInputDialog({
-    title: '💾 保存配置预设',
-    message: '为此配置起一个易识别的名称',
-    placeholder: '例如：OpenAI 官方配置',
-    defaultValue: `${prefix || '默认'}配置`
-  });
-  
-  if (!name) return;
-  
-  // 添加新预设（包含渠道 ID）
-  const channelId = channelSelect.value.trim();
-  presets.push({
-    name: name.trim(),
-    url: url,
-    prefix: prefix,
-    channelId: channelId || null,
-    createdAt: Date.now()
-  });
-  
-  savePresets();
-  renderPresetSelect();
-  showStatus(`✅ 预设"${name}"已保存`, 'success');
-});
-
-// 显示预设管理器
-async function showPresetManager() {
-  if (presets.length === 0) {
-    showStatus('ℹ️ 暂无保存的预设', 'info');
-    return;
-  }
-  
-  // 使用自定义列表管理对话框
-  const result = await showListManagerDialog({
-    title: '📋 管理配置预设',
-    message: '点击预设项右侧的按钮进行编辑或删除',
-    items: presets
-  });
-  
-  if (result === null) {
-    return;
-  }
-  
-  // 编辑预设
-  if (result.action === 'edit') {
-    await editPreset(result.index);
-    // 编辑完成后重新打开管理器
-    await showPresetManager();
-  }
-  
-  // 删除预设
-  if (result.action === 'delete') {
-    const confirmed = await showConfirmDialog({
-      title: '⚠️ 确认删除',
-      message: `确定要删除预设"${presets[result.index].name}"吗？`,
-      info: [
-        { label: 'URL', value: presets[result.index].url },
-        { label: '前缀', value: presets[result.index].prefix || '(无)' }
-      ],
-      confirmText: '确认删除',
-      cancelText: '取消'
-    });
-    
-    if (confirmed) {
-      const deletedName = presets[result.index].name;
-      presets.splice(result.index, 1);
-      savePresets();
-      renderPresetSelect();
-      showStatus(`✅ 已删除预设: ${deletedName}`, 'success');
-      
-      // 如果还有预设，重新打开管理器
-      if (presets.length > 0) {
-        await showPresetManager();
-      }
     } else {
-      // 取消删除，重新打开管理器
-      await showPresetManager();
+      // 恢复原始统计信息
+      if (currentResults && currentResults.length > 0) {
+        const perUseCount = currentResults.filter(r => r.quotaType === 1).length;
+        const usageBasedCount = currentResults.filter(r => r.quotaType === 0).length;
+        resultsStats.textContent = `共 ${currentResults.length} 个模型 (按次: ${perUseCount}, 按量: ${usageBasedCount})`;
+      } else {
+        resultsStats.textContent = `共 ${totalCount} 个模型`;
+      }
     }
-  }
-}
-
-/**
- * 显示多字段编辑对话框
- * @param {Object} preset - 预设配置对象
- * @param {string} preset.name - 预设名称
- * @param {string} preset.url - 上游定价 URL
- * @param {string} [preset.prefix] - 模型前缀
- * @returns {Promise<{name: string, url: string, prefix: string}|null>} 编辑结果（null=取消）
- */
-function showMultiFieldEditDialog(preset) {
-  return new Promise((resolve) => {
-    // 如果元素未加载，尝试重新获取
-    if (!multiFieldModal) {
-      multiFieldModal = document.getElementById('multiFieldModal');
-      editNameField = document.getElementById('editNameField');
-      editUrlField = document.getElementById('editUrlField');
-      editPrefixField = document.getElementById('editPrefixField');
-    }
-    
-    if (!multiFieldModal || !editNameField || !editUrlField || !editPrefixField) {
-      console.error('多字段编辑对话框元素未找到');
-      resolve(null);
-      return;
-    }
-    
-    // 填充当前值
-    editNameField.value = preset.name;
-    editUrlField.value = preset.url;
-    editPrefixField.value = preset.prefix || '';
-    
-    // 显示对话框
-    multiFieldModal.classList.add('show');
-    
-    // 聚焦到第一个字段
-    setTimeout(() => {
-      editNameField.focus();
-      editNameField.select();
-    }, 100);
-    
-    // 获取当前的按钮元素
-    const currentCancelBtn = document.getElementById('multiFieldModalCancelBtn');
-    const currentConfirmBtn = document.getElementById('multiFieldModalConfirmBtn');
-    
-    // 绑定事件（先移除旧事件）
-    const newCancelBtn = currentCancelBtn.cloneNode(true);
-    const newConfirmBtn = currentConfirmBtn.cloneNode(true);
-    currentCancelBtn.parentNode.replaceChild(newCancelBtn, currentCancelBtn);
-    currentConfirmBtn.parentNode.replaceChild(newConfirmBtn, currentConfirmBtn);
-    
-    // 取消按钮
-    const handleCancel = () => {
-      multiFieldModal.classList.remove('show');
-      multiFieldModal.removeEventListener('click', handleOverlayClick);
-      resolve(null);
-    };
-    
-    newCancelBtn.addEventListener('click', handleCancel);
-    
-    // 确认按钮
-    const handleConfirm = () => {
-      const name = editNameField.value.trim();
-      const url = editUrlField.value.trim();
-      const prefix = editPrefixField.value.trim();
-      
-      if (!name) {
-        // 显示提示
-        editNameField.style.borderColor = 'var(--color-danger)';
-        editNameField.focus();
-        setTimeout(() => {
-          editNameField.style.borderColor = '';
-        }, 2000);
-        return;
-      }
-      
-      if (!url) {
-        // 显示提示
-        editUrlField.style.borderColor = 'var(--color-danger)';
-        editUrlField.focus();
-        setTimeout(() => {
-          editUrlField.style.borderColor = '';
-        }, 2000);
-        return;
-      }
-      
-      multiFieldModal.classList.remove('show');
-      multiFieldModal.removeEventListener('click', handleOverlayClick);
-      editPrefixField.removeEventListener('keypress', handleKeyPress);
-      resolve({ name, url, prefix });
-    };
-    
-    newConfirmBtn.addEventListener('click', handleConfirm);
-    
-    // 回车键确认（在最后一个字段）
-    const handleKeyPress = (e) => {
-      if (e.key === 'Enter') {
-        handleConfirm();
-      }
-    };
-    
-    editPrefixField.addEventListener('keypress', handleKeyPress);
-    
-    // Tab 键在字段间切换
-    const handleTab = (e) => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        if (e.target === editNameField) {
-          editUrlField.focus();
-        } else if (e.target === editUrlField) {
-          editPrefixField.focus();
-        } else if (e.target === editPrefixField) {
-          editNameField.focus();
-        }
-      }
-    };
-    
-    editNameField.addEventListener('keydown', handleTab);
-    editUrlField.addEventListener('keydown', handleTab);
-    editPrefixField.addEventListener('keydown', handleTab);
-    
-    // 点击遮罩层关闭
-    const handleOverlayClick = (e) => {
-      if (e.target === multiFieldModal) {
-        multiFieldModal.classList.remove('show');
-        multiFieldModal.removeEventListener('click', handleOverlayClick);
-        editPrefixField.removeEventListener('keypress', handleKeyPress);
-        editNameField.removeEventListener('keydown', handleTab);
-        editUrlField.removeEventListener('keydown', handleTab);
-        editPrefixField.removeEventListener('keydown', handleTab);
-        resolve(null);
-      }
-    };
-    
-    multiFieldModal.addEventListener('click', handleOverlayClick);
   });
 }
 
-/**
- * 编辑指定索引的预设配置
- * @param {number} index - 预设在数组中的索引
- * @returns {Promise<void>}
- */
-async function editPreset(index) {
-  const preset = presets[index];
-  
-  if (!preset) {
-    showStatus('❌ 预设不存在', 'error');
-    return;
-  }
-  
-  // 使用多字段编辑对话框
-  const result = await showMultiFieldEditDialog(preset);
-  
-  if (!result) {
-    return; // 用户取消
-  }
-  
-  // 验证 URL 格式
-  const urlValidation = validateUrl(result.url);
-  if (!urlValidation.valid) {
-    showStatus(`❌ URL 格式错误：${urlValidation.error}`, 'error');
-    // 重新打开编辑对话框
-    await editPreset(index);
-    return;
-  }
-  
-  // 更新预设（保留渠道 ID）
-  const channelId = channelSelect.value.trim();
-  presets[index] = {
-    ...preset,
-    name: result.name.trim(),
-    url: result.url.trim(),
-    prefix: result.prefix.trim(),
-    channelId: channelId || preset.channelId || null,
-    updatedAt: Date.now()
-  };
-  
-  savePresets();
-  renderPresetSelect();
-  showStatus(`✅ 已更新预设: ${result.name}`, 'success');
-}
 
 // 更新智能同步按钮状态
 function updateSmartSyncButton() {
@@ -1220,21 +859,29 @@ function updateSmartSyncButton() {
   
   if (!url) {
     smartSyncBtn.disabled = true;
-    smartSyncBtnText.textContent = '智能同步';
+    // 根据当前模式设置默认文本
+    smartSyncBtnText.textContent = currentMode === 'auto' ? '创建并同步' : '开始同步';
     syncModeHint.style.display = 'none';
     return;
   }
   
   smartSyncBtn.disabled = false;
   
-  // 根据是否选择渠道决定同步模式
-  if (channelId) {
-    smartSyncBtnText.textContent = '完整同步（模型+价格）';
-    syncModeText.textContent = '将同步模型列表并更新价格';
-    syncModeHint.style.display = 'block';
+  // 快速同步模式：根据是否选择渠道显示不同提示
+  if (currentMode === 'quick') {
+    if (channelId) {
+      smartSyncBtnText.textContent = '完整同步（模型+价格）';
+      syncModeText.textContent = '将同步模型列表并更新价格';
+      syncModeHint.style.display = 'block';
+    } else {
+      smartSyncBtnText.textContent = '快速更新（仅价格）';
+      syncModeText.textContent = '仅更新价格配置';
+      syncModeHint.style.display = 'block';
+    }
   } else {
-    smartSyncBtnText.textContent = '快速更新（仅价格）';
-    syncModeText.textContent = '仅更新价格配置';
+    // 自动配置模式：始终显示"创建并同步"
+    smartSyncBtnText.textContent = '创建并同步';
+    syncModeText.textContent = '将自动创建渠道并同步价格';
     syncModeHint.style.display = 'block';
   }
 }
@@ -1469,9 +1116,8 @@ async function performBatchUpdateAllChannels() {
     
     showStatus(resultMsg, successCount > 0 ? 'success' : 'error');
     
-    setTimeout(() => {
-      hideProgress();
-    }, 3000);
+    // 立即隐藏进度条，避免与状态消息重叠显示
+    hideProgress();
     
   } catch (error) {
     showStatus(`❌ 批量更新失败：${error.message}`, 'error');
@@ -1541,9 +1187,6 @@ async function performQuickUpdateLogic() {
     
     currentResults = analyzeResponse.results;
     currentApiUrl = analyzeResponse.apiUrl;
-    
-    // 保存为最后使用的配置
-    saveLastUsedConfig(upstreamUrl, prefix);
     
     // 渲染结果表格
     renderResultsTable(analyzeResponse.results, prefix);
@@ -1702,9 +1345,6 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
     currentResults = analyzeResponse.results;
     currentApiUrl = analyzeResponse.apiUrl;
     
-    // 保存为最后使用的配置
-    saveLastUsedConfig(upstreamUrl, prefix);
-    
     // 渲染结果表格
     renderResultsTable(analyzeResponse.results, prefix);
     
@@ -1740,23 +1380,6 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
         `• CompletionRatio: ${syncPriceResponse.stats.completionRatioCount} 个`;
       
       showStatus(statusMsg, 'success');
-      
-      // 自动保存为预设
-      const existingIndex = presets.findIndex(p => p.url === upstreamUrl && p.prefix === prefix);
-      if (existingIndex === -1) {
-        const autoName = prefix ? `${prefix}配置` : `默认配置`;
-        presets.push({
-          name: autoName,
-          url: upstreamUrl,
-          prefix: prefix,
-          channelId: channelId,
-          createdAt: Date.now(),
-          autoSaved: true
-        });
-        savePresets();
-        renderPresetSelect();
-        console.log(`💾 已自动保存预设: ${autoName}`);
-      }
     } else {
       showStatus(`❌ 同步价格失败：${syncPriceResponse.error}`, 'error');
     }
@@ -1929,11 +1552,7 @@ chrome.storage.local.get([
     channelTagInput.value = result.autoConfigChannelTag;
   }
   
-  // 加载预设和最后使用的配置
-  loadPresets().then(() => {
-    renderPresetSelect();
-    updateSmartSyncButton();
-  });
+  updateSmartSyncButton();
   
   // 加载完配置后检测登录状态
   checkLoginStatus();
@@ -2060,14 +1679,20 @@ channelSelect.addEventListener('change', () => {
     // 智能填充：从选中的渠道自动获取URL和前缀
     const selectedChannel = channelsList.find(ch => ch.id == channelId);
     if (selectedChannel && selectedChannel.baseUrl) {
-      // 自动填充基础URL
+      // 自动填充基础URL并设为只读
       if (upstreamBaseUrlInput) {
         upstreamBaseUrlInput.value = selectedChannel.baseUrl;
+        upstreamBaseUrlInput.readOnly = true;
+        upstreamBaseUrlInput.style.background = 'var(--color-bg)';
+        upstreamBaseUrlInput.style.cursor = 'not-allowed';
       }
       
-      // 自动填充前缀（使用渠道名称）
+      // 自动填充前缀并设为只读
       if (modelPrefixInput && selectedChannel.name) {
         modelPrefixInput.value = selectedChannel.name.replace(/\/+$/, '');
+        modelPrefixInput.readOnly = true;
+        modelPrefixInput.style.background = 'var(--color-bg)';
+        modelPrefixInput.style.cursor = 'not-allowed';
       }
       
       // 显示提示
@@ -2083,6 +1708,37 @@ channelSelect.addEventListener('change', () => {
   // 更新智能同步按钮状态
   updateSmartSyncButton();
 });
+
+// 点击只读输入框时启用编辑
+if (upstreamBaseUrlInput) {
+  upstreamBaseUrlInput.addEventListener('click', () => {
+    if (upstreamBaseUrlInput.readOnly) {
+      upstreamBaseUrlInput.readOnly = false;
+      upstreamBaseUrlInput.style.background = '';
+      upstreamBaseUrlInput.style.cursor = '';
+      upstreamBaseUrlInput.focus();
+      showStatus('✏️ 已启用手动编辑模式', 'info');
+      setTimeout(() => {
+        statusDiv.classList.remove('show');
+      }, 1500);
+    }
+  });
+}
+
+if (modelPrefixInput) {
+  modelPrefixInput.addEventListener('click', () => {
+    if (modelPrefixInput.readOnly) {
+      modelPrefixInput.readOnly = false;
+      modelPrefixInput.style.background = '';
+      modelPrefixInput.style.cursor = '';
+      modelPrefixInput.focus();
+      showStatus('✏️ 已启用手动编辑模式', 'info');
+      setTimeout(() => {
+        statusDiv.classList.remove('show');
+      }, 1500);
+    }
+  });
+}
 
 // 智能渠道匹配函数
 function performIntelligentChannelMatch() {
@@ -2281,29 +1937,8 @@ if (refreshBtn) {
 // 设置按钮 - 显示设置菜单
 if (settingsBtn) {
   settingsBtn.addEventListener('click', async () => {
-    // 第一步：选择操作类型
-    const action = await showConfirmDialog({
-      title: '⚙️ 设置菜单',
-      message: '请选择要执行的操作',
-      info: [
-        { label: '预设数量', value: `${presets.length} 个` },
-        { label: '最后使用', value: lastUsedConfig ? new Date(lastUsedConfig.timestamp).toLocaleString('zh-CN') : '无记录' }
-      ],
-      confirmText: '📋 管理预设',
-      cancelText: 'ℹ️ 关于'
-    });
-    
-    // 用户点击"管理预设"
-    if (action === true) {
-      await showPresetManager();
-      return;
-    }
-    
-    // 用户点击"关于"
-    if (action === false) {
-      await showAboutDialog();
-      return;
-    }
+    // 直接显示关于对话框
+    await showAboutDialog();
   });
 }
 
@@ -2420,30 +2055,6 @@ async function showAboutDialog() {
   });
 }
 
-// 添加一个独立的"清空配置"功能（可以通过其他方式触发）
-async function clearAllConfigs() {
-  const confirmed = await showConfirmDialog({
-    title: '⚠️ 危险操作',
-    message: '确定要清空所有预设和历史配置吗？此操作无法撤销！',
-    info: [
-      { label: '预设数量', value: `${presets.length} 个` },
-      { label: '历史记录', value: lastUsedConfig ? '有记录' : '无记录' }
-    ],
-    confirmText: '确认清空',
-    cancelText: '取消'
-  });
-  
-  if (confirmed) {
-    presets = [];
-    lastUsedConfig = null;
-    chrome.storage.local.clear(() => {
-      savePresets();
-      renderPresetSelect();
-      updateSmartSyncButton();
-      showStatus('✅ 已清空所有配置', 'success');
-    });
-  }
-}
 
 // 保存配置
 function saveConfig() {
