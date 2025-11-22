@@ -2056,6 +2056,27 @@ channelSelect.addEventListener('change', () => {
   const channelId = channelSelect.value;
   if (channelId) {
     chrome.storage.local.set({ channelId: channelId });
+    
+    // 智能填充：从选中的渠道自动获取URL和前缀
+    const selectedChannel = channelsList.find(ch => ch.id == channelId);
+    if (selectedChannel && selectedChannel.baseUrl) {
+      // 自动填充基础URL
+      if (upstreamBaseUrlInput) {
+        upstreamBaseUrlInput.value = selectedChannel.baseUrl;
+      }
+      
+      // 自动填充前缀（使用渠道名称）
+      if (modelPrefixInput && selectedChannel.name) {
+        modelPrefixInput.value = selectedChannel.name.replace(/\/+$/, '');
+      }
+      
+      // 显示提示
+      showStatus(`✅ 已自动填充渠道"${selectedChannel.name}"的配置`, 'success');
+      setTimeout(() => {
+        statusDiv.classList.remove('show');
+      }, 2000);
+    }
+    
     performIntelligentChannelMatch();
   }
   
