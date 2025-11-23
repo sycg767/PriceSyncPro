@@ -84,6 +84,22 @@ if (apiPathSelectAuto && apiPathCustomAutoInput) {
     } else {
       apiPathCustomAutoInput.style.display = 'none';
     }
+    // 保存API路径选择
+    chrome.storage.local.set({ autoConfigApiPath: this.value });
+  });
+}
+
+// 保存自动配置模式的基础URL
+if (upstreamBaseUrlAutoInput) {
+  upstreamBaseUrlAutoInput.addEventListener('input', () => {
+    chrome.storage.local.set({ autoConfigBaseUrl: upstreamBaseUrlAutoInput.value });
+  });
+}
+
+// 保存自动配置模式的自定义API路径
+if (apiPathCustomAutoInput) {
+  apiPathCustomAutoInput.addEventListener('input', () => {
+    chrome.storage.local.set({ autoConfigApiPathCustom: apiPathCustomAutoInput.value });
   });
 }
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -135,7 +151,8 @@ let currentMode = 'quick'; // 'quick' 或 'auto'
 function getFullUpstreamUrl() {
   if (!upstreamBaseUrlInput) return '';
   
-  const baseUrl = upstreamBaseUrlInput.value.trim();
+  // 自动去除尾部斜杠，提升用户体验
+  const baseUrl = upstreamBaseUrlInput.value.trim().replace(/\/+$/, '');
   if (!baseUrl) return '';
   
   const apiPath = apiPathSelect?.value || 'api/pricing';
@@ -195,7 +212,8 @@ function setFullUpstreamUrl(fullUrl) {
 function getFullUpstreamUrlAuto() {
   if (!upstreamBaseUrlAutoInput) return '';
   
-  const baseUrl = upstreamBaseUrlAutoInput.value.trim();
+  // 自动去除尾部斜杠，提升用户体验
+  const baseUrl = upstreamBaseUrlAutoInput.value.trim().replace(/\/+$/, '');
   if (!baseUrl) return '';
   
   const apiPath = apiPathSelectAuto?.value || 'api/pricing';
@@ -331,7 +349,7 @@ if (upstreamUrlAuto) {
     upstreamUrlInput.value = upstreamUrlAuto.value;
     // 保存自动配置模式的URL
     chrome.storage.local.set({ autoConfigUrl: upstreamUrlAuto.value });
-    validateInputs();
+    updateSmartSyncButton();
   });
 }
 
@@ -340,7 +358,7 @@ if (modelPrefixAuto) {
     modelPrefixInput.value = modelPrefixAuto.value;
     // 保存自动配置模式的前缀
     chrome.storage.local.set({ autoConfigPrefix: modelPrefixAuto.value });
-    validateInputs();
+    updateSmartSyncButton();
   });
 }
 
@@ -926,8 +944,8 @@ smartSyncBtn.addEventListener('click', async () => {
       
       // 步骤4: 自动执行完整同步（模型列表 + 价格），跳过确认对话框
       smartSyncBtn.innerHTML = '<span class="spinner"></span>同步模型和价格中...';
-      // 传递自动配置模式使用的前缀
-      await performCompleteSyncLogic(true, normalizedPrefix);
+      // 自动配置完成后执行完整同步（使用已保存到快速模式的前缀）
+      await performCompleteSyncLogic(true);
       
     } catch (error) {
       showStatus(`❌ 自动配置失败：${error.message}`, 'error');
@@ -1232,7 +1250,10 @@ async function performQuickUpdateLogic() {
 // 完整同步逻辑（模型+价格）
 async function performCompleteSyncLogic(skipConfirmation = false) {
   const upstreamUrl = getFullUpstreamUrl();
-  const prefix = getNormalizedPrefix();
+  // ✅ 修复：根据当前模式获取正确的前缀
+  const prefix = currentMode === 'auto'
+    ? (modelPrefixAuto?.value.trim() ? (modelPrefixAuto.value.trim().endsWith('/') ? modelPrefixAuto.value.trim() : modelPrefixAuto.value.trim() + '/') : '')
+    : getNormalizedPrefix();
   const channelId = channelSelect.value.trim();
   
   if (!upstreamUrl) {
@@ -1507,7 +1528,7 @@ function autoMatchChannelFromPrefix() {
 chrome.storage.local.get([
   'upstreamUrl', 'upstreamBaseUrl', 'apiPath',
   'modelPrefix', 'tokenGroup', 'channelId',
-  'autoConfigBaseUrl', 'autoConfigApiPath',
+  'autoConfigBaseUrl', 'autoConfigApiPath', 'autoConfigApiPathCustom',
   'autoConfigPrefix', 'autoConfigApiKey', 'autoConfigChannelTag'
 ], (result) => {
   // 优先使用新格式（分离的baseUrl和apiPath）
@@ -1540,6 +1561,10 @@ chrome.storage.local.get([
     apiPathSelectAuto.value = result.autoConfigApiPath;
     if (result.autoConfigApiPath === 'custom' && apiPathCustomAutoInput) {
       apiPathCustomAutoInput.style.display = 'block';
+      // 恢复自定义路径的值
+      if (result.autoConfigApiPathCustom) {
+        apiPathCustomAutoInput.value = result.autoConfigApiPathCustom;
+      }
     }
   }
   if (result.autoConfigPrefix && modelPrefixAuto) {
