@@ -184,10 +184,18 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
       
       const response = await fetch(url, options);
       
+      // 只在第一次遇到 403 时尝试标签页请求，避免重复打开标签页
       if (response.status === 403 && !usedTabFetch) {
-        console.warn(`⚠️ 收到 403，切换到标签页请求模式`);
-        const data = await fetchFromTab(url, url);
-        return data;
+        console.warn(`⚠️ 收到 403，切换到标签页请求模式（仅尝试一次）`);
+        usedTabFetch = true;  // 标记已使用标签页模式
+        try {
+          const data = await fetchFromTab(url, url);
+          return data;
+        } catch (tabError) {
+          console.error(`❌ 标签页请求也失败:`, tabError.message);
+          // 标签页请求失败后，直接抛出错误，不再重试
+          throw new Error(`HTTP 403: 无法访问 (Cloudflare保护或权限限制)\n\n建议：请先在浏览器中访问该网站并完成验证`);
+        }
       }
       
       if (!response.ok) {
@@ -209,6 +217,11 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
     } catch (error) {
       console.error(`❌ 尝试 ${attempt} 失败:`, error.message);
       lastError = error;
+      
+      // 如果已经使用过标签页模式且失败，直接抛出错误，不再重试
+      if (usedTabFetch) {
+        throw lastError;
+      }
       
       if (attempt === maxRetries) {
         throw lastError;

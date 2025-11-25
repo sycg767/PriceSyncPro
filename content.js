@@ -795,7 +795,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // 保存 API URL 供后续使用
         window._currentApiUrl = request.upstreamUrl;
         
-        let upstreamData = await fetchCORS(request.upstreamUrl);
+        // 尝试获取上游数据，如果失败则提供更友好的错误消息
+        let upstreamData;
+        try {
+          upstreamData = await fetchCORS(request.upstreamUrl);
+        } catch (error) {
+          // 如果是 403 错误（可能是 Cloudflare 保护），提供更详细的说明
+          if (error.message.includes('403')) {
+            throw new Error(
+              '无法访问上游 API（HTTP 403）\n\n' +
+              '💡 可能原因：\n' +
+              '1. 网站启用了 Cloudflare 保护\n' +
+              '2. 需要先在浏览器中访问该网站完成验证\n' +
+              '3. 网站可能限制了 API 访问\n\n' +
+              '🔧 解决方法：\n' +
+              '1. 在浏览器新标签页中打开该网站\n' +
+              '2. 完成 Cloudflare 验证（如果有）\n' +
+              '3. 然后重新尝试同步\n\n' +
+              `目标 URL: ${request.upstreamUrl}`
+            );
+          }
+          // 其他错误直接抛出
+          throw error;
+        }
         
         console.log('📦 原始上游数据:', upstreamData);
         
@@ -1091,16 +1113,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           throw new Error('渠道列表为空');
         }
         
-        const channels = channelList.map(ch => ({
+        // 过滤掉禁用的渠道（status !== 1 表示禁用）
+        const enabledChannels = channelList.filter(ch => ch.status === 1);
+        
+        console.log(`📊 渠道统计: 总共 ${channelList.length} 个，启用 ${enabledChannels.length} 个`);
+        
+        const channels = enabledChannels.map(ch => ({
           id: ch.id,
           name: ch.name,
           type: ch.type,
           baseUrl: ch.base_url,
           tag: ch.tag,
-          models: ch.models ? ch.models.split(',').length : 0
+          models: ch.models ? ch.models.split(',').length : 0,
+          status: ch.status
         }));
         
-        console.log(`✅ 获取到 ${channels.length} 个渠道`);
+        console.log(`✅ 获取到 ${channels.length} 个启用的渠道`);
         
         sendResponse({
           success: true,
