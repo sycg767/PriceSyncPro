@@ -820,8 +820,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         console.log('📦 原始上游数据:', upstreamData);
+        console.log('📦 数据结构分析:', {
+          type: typeof upstreamData,
+          isArray: Array.isArray(upstreamData),
+          hasData: upstreamData?.data !== undefined,
+          hasModels: upstreamData?.models !== undefined,
+          hasSuccess: upstreamData?.success !== undefined,
+          dataIsArray: Array.isArray(upstreamData?.data)
+        });
         
-        // 先检查数据格式，确保是数组
+        // 🔧 增强版数据格式兼容处理
         if (!Array.isArray(upstreamData)) {
           // 如果返回的是对象，尝试提取数组
           if (upstreamData.data && Array.isArray(upstreamData.data)) {
@@ -830,8 +838,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           } else if (upstreamData.models && Array.isArray(upstreamData.models)) {
             upstreamData = upstreamData.models;
             console.log('✓ 从 models 字段提取数组，模型数量:', upstreamData.length);
+          } else if (upstreamData.success && upstreamData.data && typeof upstreamData.data === 'object') {
+            // 🆕 处理 {success: true, data: {...}} 格式（One Hub 对象格式）
+            console.log('🔄 检测到包含 success 的对象格式，尝试 One Hub 转换...');
+            const converted = convertOneHubFormat(upstreamData);
+            if (Array.isArray(converted)) {
+              upstreamData = converted;
+              console.log('✓ One Hub 格式转换成功，模型数量:', upstreamData.length);
+            } else {
+              throw new Error(`上游数据格式错误：期望数组或包含 data/models 字段的对象，收到 ${typeof upstreamData}。请检查上游 URL 是否正确。`);
+            }
           } else {
-            // 🆕 在抛出错误之前，尝试 One Hub 对象格式转换
+            // 🆕 最后尝试 One Hub 对象格式转换
             const converted = convertOneHubFormat(upstreamData);
             if (Array.isArray(converted)) {
               upstreamData = converted;
