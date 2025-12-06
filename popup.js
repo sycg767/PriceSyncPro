@@ -1025,26 +1025,37 @@ async function performBatchUpdateAllChannels() {
       }
     }
     
-    showStatus(`🚀 开始批量更新 ${channelsList.length} 个渠道...`, 'info');
-    showProgress(0, '准备中...');
-    
+    // 初始化统计
     let successCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
     const failedChannels = [];
+    const successChannels = [];
+    
+    // 显示初始状态
+    showProgress(0, '准备中...');
+    showBatchUpdateStatus(0, channelsList.length, successCount, failedCount, skippedCount);
     
     // 遍历所有渠道
     for (let i = 0; i < channelsList.length; i++) {
       const channel = channelsList[i];
       const progress = Math.round(((i + 1) / channelsList.length) * 100);
       
-      showProgress(progress, `处理 ${i + 1}/${channelsList.length}: ${channel.name}`);
-      showStatus(`🔄 [${i + 1}/${channelsList.length}] 正在更新渠道: ${channel.name}`, 'info');
+      // 更新进度条
+      showProgress(progress, `${i + 1}/${channelsList.length}: ${channel.name}`);
       
       try {
+        // 检查是否有 base_url
         if (!channel.baseUrl) {
           console.warn(`渠道 ${channel.name} 没有 base_url，跳过`);
-          failedCount++;
-          failedChannels.push({ name: channel.name, reason: '缺少 base_url' });
+          skippedCount++;
+          failedChannels.push({
+            name: channel.name,
+            reason: '缺少 base_url',
+            type: 'skip'
+          });
+          // 更新实时统计
+          showBatchUpdateStatus(i + 1, channelsList.length, successCount, failedCount, skippedCount, channel.name, 'skip');
           continue;
         }
         
@@ -1073,23 +1084,28 @@ async function performBatchUpdateAllChannels() {
             usedPath = apiConfig.path;
             break;
           } else {
-            // 记录失败原因
             const error = result.error || result.response?.error || '未知错误';
-            attemptErrors.push(`${apiConfig.name}(${apiConfig.path}): ${error}`);
+            attemptErrors.push(`${apiConfig.name}: ${error.substring(0, 50)}`);
           }
         }
         
         if (!analyzeResult) {
           failedCount++;
-          const detailedReason = attemptErrors.join(' | ');
-          failedChannels.push({ name: channel.name, reason: detailedReason });
+          const shortReason = attemptErrors[0] || '所有API路径均失败';
+          failedChannels.push({
+            name: channel.name,
+            reason: shortReason,
+            type: 'error'
+          });
+          // 更新实时统计
+          showBatchUpdateStatus(i + 1, channelsList.length, successCount, failedCount, skippedCount, channel.name, 'error');
           continue;
         }
         
         const results = analyzeResult.response.results;
         const apiUrl = analyzeResult.response.apiUrl;
         
-        // 步骤2: 同步到后台
+        // 同步到后台
         const syncResult = await sendMessageWithRetry(tab.id, {
           action: 'syncToBackend',
           results: results,
@@ -1099,14 +1115,27 @@ async function performBatchUpdateAllChannels() {
         
         if (!syncResult.success || !syncResult.response.success) {
           const error = syncResult.error || syncResult.response?.error || '未知错误';
-          console.error(`渠道 ${channel.name} 同步失败:`, error);
           failedCount++;
-          failedChannels.push({ name: channel.name, reason: error });
+          failedChannels.push({
+            name: channel.name,
+            reason: error.substring(0, 100),
+            type: 'error'
+          });
+          // 更新实时统计
+          showBatchUpdateStatus(i + 1, channelsList.length, successCount, failedCount, skippedCount, channel.name, 'error');
           continue;
         }
         
+        // 成功
         successCount++;
-        console.log(`✅ 渠道 ${channel.name} 更新成功`);
+        successChannels.push({
+          name: channel.name,
+          modelCount: results.length,
+          path: usedPath
+        });
+        
+        // 更新实时统计
+        showBatchUpdateStatus(i + 1, channelsList.length, successCount, failedCount, skippedCount, channel.name, 'success');
         
         // 稍微延迟，避免请求过快
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -1114,28 +1143,24 @@ async function performBatchUpdateAllChannels() {
       } catch (error) {
         console.error(`处理渠道 ${channel.name} 时出错:`, error);
         failedCount++;
-        failedChannels.push({ name: channel.name, reason: error.message });
+        failedChannels.push({
+          name: channel.name,
+          reason: error.message.substring(0, 100),
+          type: 'error'
+        });
+        // 更新实时统计
+        showBatchUpdateStatus(i + 1, channelsList.length, successCount, failedCount, skippedCount, channel.name, 'error');
       }
     }
     
     // 显示最终结果
     showProgress(100, '✅ 批量更新完成');
+    showBatchUpdateFinalReport(channelsList.length, successCount, failedCount, skippedCount, successChannels, failedChannels);
     
-    let resultMsg = `🎉 批量更新完成！\n\n`;
-    resultMsg += `✅ 成功: ${successCount} 个渠道\n`;
-    
-    if (failedCount > 0) {
-      resultMsg += `❌ 失败: ${failedCount} 个渠道\n\n`;
-      resultMsg += `失败的渠道：\n`;
-      failedChannels.forEach(ch => {
-        resultMsg += `• ${ch.name}: ${ch.reason}\n`;
-      });
-    }
-    
-    showStatus(resultMsg, successCount > 0 ? 'success' : 'error');
-    
-    // 立即隐藏进度条，避免与状态消息重叠显示
-    hideProgress();
+    // 2秒后隐藏进度条
+    setTimeout(() => {
+      hideProgress();
+    }, 2000);
     
   } catch (error) {
     showStatus(`❌ 批量更新失败：${error.message}`, 'error');
@@ -1145,6 +1170,70 @@ async function performBatchUpdateAllChannels() {
     batchUpdateBtn.disabled = false;
     batchUpdateBtn.innerHTML = originalHTML;
   }
+}
+
+/**
+ * 显示批量更新的实时状态
+ */
+function showBatchUpdateStatus(current, total, success, failed, skipped, currentChannel = '', status = '') {
+  const statusIcon = {
+    'success': '✅',
+    'error': '❌',
+    'skip': '⏭️',
+    '': '🔄'
+  };
+  
+  const icon = statusIcon[status] || '🔄';
+  const channelInfo = currentChannel ? ` | 当前: ${icon} ${currentChannel}` : '';
+  
+  const message = `📊 批量更新进度: ${current}/${total}${channelInfo}\n\n` +
+    `✅ 成功: ${success} 个\n` +
+    `❌ 失败: ${failed} 个\n` +
+    `⏭️ 跳过: ${skipped} 个`;
+  
+  showStatus(message, 'info');
+}
+
+/**
+ * 显示批量更新的最终报告
+ */
+function showBatchUpdateFinalReport(total, success, failed, skipped, successChannels, failedChannels) {
+  let message = `🎉 批量更新完成！\n\n`;
+  message += `📊 总计: ${total} 个渠道\n`;
+  message += `✅ 成功: ${success} 个\n`;
+  message += `❌ 失败: ${failed} 个\n`;
+  message += `⏭️ 跳过: ${skipped} 个\n`;
+  
+  // 成功渠道详情（仅显示前5个）
+  if (successChannels.length > 0) {
+    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `✅ 成功更新的渠道:\n`;
+    const displayCount = Math.min(5, successChannels.length);
+    for (let i = 0; i < displayCount; i++) {
+      const ch = successChannels[i];
+      message += `  • ${ch.name} (${ch.modelCount}个模型)\n`;
+    }
+    if (successChannels.length > 5) {
+      message += `  ... 还有 ${successChannels.length - 5} 个渠道\n`;
+    }
+  }
+  
+  // 失败渠道详情
+  if (failedChannels.length > 0) {
+    message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `❌ 失败/跳过的渠道:\n`;
+    failedChannels.forEach(ch => {
+      const icon = ch.type === 'skip' ? '⏭️' : '❌';
+      // 截断过长的错误信息
+      const shortReason = ch.reason.length > 60
+        ? ch.reason.substring(0, 60) + '...'
+        : ch.reason;
+      message += `  ${icon} ${ch.name}\n     └─ ${shortReason}\n`;
+    });
+  }
+  
+  const statusType = success > 0 ? 'success' : (failed > 0 ? 'error' : 'info');
+  showStatus(message, statusType);
 }
 
 // 快速更新逻辑（仅价格）
